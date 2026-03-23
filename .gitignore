@@ -209,5 +209,21 @@ FodyWeavers.xsd
 .idea/
 *.sln.iml
 
-/DarwinGA/obj/**
-/DarwinGA/obj/DarwinGA.csproj.nuget.dgspec.json
+#Excluir archivos contenidos en obj
+/DarwinGA/obj*
+/DarwinGA.Example/obj/Debug/net8.0/DarwinGA.Example.AssemblyInfo.cs
+/DarwinGA.Example/obj/Debug/net8.0/DarwinGA.Example.AssemblyInfoInputs.cache
+/DarwinGA.Example/obj/Debug/net8.0/DarwinGA.Example.assets.cache
+/DarwinGA.Example/obj/DarwinGA.Example.csproj.nuget.dgspec.json
+/DarwinGA/obj/project.assets.json
+/DarwinGA/obj/project.nuget.cache
+/DarwinGA.Example/obj/Debug/net8.0/DarwinGA.Example.csproj.AssemblyReference.cache
+/DarwinGA.Example/obj/project.assets.json
+/DarwinGA.Example/obj/project.nuget.cache
+/DarwinGA.*/obj/Debug/net8.0/DarwinGA.*.AssemblyInfo.cs
+/DarwinGA.Tests/obj/Debug/net8.0/DarwinGA.Tests.AssemblyInfoInputs.cache
+/DarwinGA.Tests/obj/Debug/net8.0/DarwinGA.Tests.assets.cache
+/DarwinGA.Tests/obj/Debug/net8.0/DarwinGA.Tests.csproj.AssemblyReference.cache
+/DarwinGA.Tests/obj/project.nuget.cache
+/DarwinGA.Tests/obj/project.assets.json
+/DarwinGA.Tests/obj/DarwinGA.Tests.csproj.nuget.dgspec.json

@@ -7,6 +7,7 @@
 *.user
 *.userosscache
 *.sln.docstates
+*.cache
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -207,3 +208,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+# AssemblyInfo.cs
+**/AssemblyInfo.cs

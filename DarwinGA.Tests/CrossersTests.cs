@@ -140,6 +140,46 @@ namespace DarwinGA.Tests
         }
 
         [Fact]
+        public void OnePointCross_Should_Handle_Small_Arrays_Correctly()
+        {
+            var cross = new OnePointCross();
+            
+            // Size 0
+            var p0_1 = new BinaryEvolutional(0);
+            var p0_2 = new BinaryEvolutional(0);
+            var child0 = cross.Apply(p0_1, p0_2);
+            Assert.Equal(0, child0.Size);
+
+            // Size 1
+            var p1_1 = new BinaryEvolutional(1);
+            p1_1.SetGen(0, false);
+            var p1_2 = new BinaryEvolutional(1);
+            p1_2.SetGen(0, true);
+            var child1 = cross.Apply(p1_1, p1_2);
+            Assert.Equal(1, child1.Size);
+        }
+        
+        [Fact]
+        public void NPointCross_Should_Handle_Small_Arrays_Correctly()
+        {
+            var cross = new NPointCross();
+            
+            // Size 0
+            var p0_1 = new BinaryEvolutional(0);
+            var p0_2 = new BinaryEvolutional(0);
+            var child0 = cross.Apply(p0_1, p0_2);
+            Assert.Equal(0, child0.Size);
+
+            // Size 1
+            var p1_1 = new BinaryEvolutional(1);
+            p1_1.SetGen(0, false);
+            var p1_2 = new BinaryEvolutional(1);
+            p1_2.SetGen(0, true);
+            var child1 = cross.Apply(p1_1, p1_2);
+            Assert.Equal(1, child1.Size);
+        }
+
+        [Fact]
         public void Crossers_Should_Throw_On_Different_Sizes()
         {
             var small = new BinaryEvolutional(5);

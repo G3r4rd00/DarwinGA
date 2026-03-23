@@ -44,8 +44,27 @@ ga.Start();
 
 ### What is an Evolutional?
 
-An **evolutional** is a small model that defines how a chromosome **crosses and mutates**.  
-In the simplest case, you only implement those two functions, and DarwinGA provides the rest of the genetic algorithm machinery (selection, termination, population flow).
+An **evolutional** is the chromosome type that implements `IGAEvolutional<T>`.  
+To create a new one, you only need to define how it **crosses** (`ICross<T>`) and **mutates** (`IMutation<T>`). DarwinGA provides the rest of the genetic algorithm machinery (selection, termination, population flow).
+
+**Minimal custom evolutional (crossover + mutation only):**
+
+```csharp   
+public class MyCustomChromosome : IGAEvolutional<MyCustomChromosome>
+{
+    // Your gene properties here
+
+    public MyCustomChromosome Cross(MyCustomChromosome mate)
+    {
+        // Implement crossover logic
+    }
+
+    public void Mutate()
+    {
+        // Implement mutation logic
+    }
+}
+```
 
 ### Parallel Execution
 
@@ -145,4 +164,6 @@ DarwinGA is developed with VS 2022, .NET 8, and C# 12. Last updated: $(date).
 ---
 
 **Keywords for search**: genetic algorithm .NET, GA library C#, evolutionary algorithms .NET 8, genetic optimization C#, binary chromosome GA, neural network GA.
+
+**Usage:**
 

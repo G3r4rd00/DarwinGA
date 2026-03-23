@@ -209,5 +209,5 @@ FodyWeavers.xsd
 .idea/
 *.sln.iml
 
-# AssemblyInfo.cs
-**/AssemblyInfo.cs
+/DarwinGA/obj/**
+/DarwinGA/obj/DarwinGA.csproj.nuget.dgspec.json

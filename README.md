@@ -1,169 +1,178 @@
-# DarwinGA — Genetic Algorithm Library for .NET 8 (C#)
+## 🧩 Creating a Custom Evolutionary Problem
 
-DarwinGA is a **lightweight, extensible genetic algorithm library for .NET 8** built in C# with clean abstractions for **selection, mutation, crossover, and termination**. It includes ready‑to‑use evolution models for **binary chromosomes** and **neural network optimization**, plus optional parallel execution for faster evaluations.
+DarwinGA is designed to be **problem-agnostic**.
 
-If you are looking for a **modern genetic algorithm framework in .NET**, DarwinGA offers a simple, pragmatic API with explicit operators and minimal ceremony.
+That means you don’t solve a problem directly — you **define how a solution behaves**, and the algorithm evolves it.
 
-## Why DarwinGA?
+To use DarwinGA, you only need to define 3 things:
 
-DarwinGA focuses on **clarity, extensibility, and performance**:
+---
 
-- **Generic core** with `GeneticAlgorithm<TElement>`.
-- **Pluggable operators** (`ISelection`, `IMutation<T>`, `ICross<T>`, `ITermination`).
-- **Create an evolution model by defining only crossover and mutation**, keeping the full power of a genetic algorithm with minimal setup.
-- **Built‑in evolution models**:
-  - `BinaryEvolutional` for classic bit‑string problems.
-  - `ActivationNetworkEvolutional` for optimizing neural networks (`Accord.Neuro`).
-- **Parallel evaluation and breeding** for faster runs.
-- **.NET 8 + C# 12** ready.
+### 1️⃣ Define your Solution (Chromosome)
 
-## Quick Start (OneMax Example)
-
-Below is a minimal example that maximizes the number of ones in a binary chromosome.
+This represents a **candidate solution**.
 
 ```csharp
-using DarwinGA;
-
-var ga = new GeneticAlgorithm<BitArray>(
-    new Population<BitArray>(200, 10),
-    new Selection<BitArray>(new RouletteWheelSelection()),
-    new Crossover<BitArray>(new UniformCrossover()),
-    new Mutation<BitArray>(new FlipBitMutation()),
-    new Termination(100)
-    );
-
-ga.Start();
+public class MySolution
+{
+    public double Price { get; set; }
+}
 ```
 
-## How to Use
+👉 This is what evolves.
 
-1. **Define your evolution model** (`BinaryEvolutional`, `ActivationNetworkEvolutional`, or your own).
-2. **Assign operators**: selection, mutation, crossover, termination.
-3. **Provide a fitness function**.
-4. **Run the algorithm** with a population size.
+You can model anything:
 
-### What is an Evolutional?
+* numbers
+* arrays
+* objects
+* strategies
 
-An **evolutional** is the chromosome type that implements `IGAEvolutional<T>`.  
-To create a new one, you only need to define how it **crosses** (`ICross<T>`) and **mutates** (`IMutation<T>`). DarwinGA provides the rest of the genetic algorithm machinery (selection, termination, population flow).
+---
 
-**Minimal custom evolutional (crossover + mutation only):**
+### 2️⃣ Define the Fitness Function
 
-```csharp   
-public class MyCustomChromosome : IGAEvolutional<MyCustomChromosome>
+This is the **most important part**.
+
+It tells the algorithm:
+
+> “How good is this solution?”
+
+```csharp
+public class MyFitnessEvaluator : IFitnessEvaluator<MySolution>
 {
-    // Your gene properties here
-
-    public MyCustomChromosome Cross(MyCustomChromosome mate)
+    public double Evaluate(MySolution solution)
     {
-        // Implement crossover logic
-    }
+        // Example: maximize profit
+        double demand = 100 - solution.Price;
+        double profit = solution.Price * demand;
 
-    public void Mutate()
-    {
-        // Implement mutation logic
+        return profit;
     }
 }
 ```
 
-### Parallel Execution
-
-Enable performance‑optimized runs with:
-
-```csharp
-ga.EnableParallelism();
-```
-
-Or configure degree of parallelism:
-
-```csharp
-ga.SetDegreeOfParallelism(4);
-```
-
-Now, fitter genomes breed faster across multiple cores.
-
-## Goals
-
-DarwinGA targets:
-
-- **Simplicity**: Easy to learn and use.
-- **Flexibility**: Customize anything, from chromosome structure to fitness evaluation.
-- **Performance**: Take advantage of modern hardware with parallel processing.
-
-## Features
-
-- [x] Binary, neural network, and custom chromosomes
-- [x] Multiple selection, mutation, and crossover strategies
-- [x] Parallel evaluation and genetic operations
-- [x] Extensible architecture
-
-## Installation
-
-Get the latest release from [NuGet](https://www.nuget.org/packages/DarwinGA):
-
-```
-dotnet add package DarwinGA
-```
-
-## Examples
-
-See the `Samples` directory for:
-
-- **OneMax**: Maximize number of 1-bits.
-- **Knapsack**: Maximize value in a weight constrained bag.
-- **Messenger RNA Folding**: Evolve RNA sequences to folded structures.
-
-## Documentation
-
-API references and advanced topics are in the [wiki](https://github.com/username/repo/wiki).
-
-## Contributing
-
-Contributions are welcome! See `CONTRIBUTING.md` for details.
-
-## License
-
-DarwinGA is licensed under the MIT License. See `LICENSE` for details.
-
-## How DarwinGA Differs From Similar Libraries
-
-DarwinGA is designed to be **simple yet extensible**, avoiding the heavy configuration or overly abstract pipelines found in many GA frameworks.
-
-**Key differences:**
-
-- **Minimal boilerplate**: configure a GA in a few lines.
-- **Define only crossover and mutation to build a full evolution model**, keeping the algorithm powerful yet lightweight to set up.
-- **Explicit operators**: no hidden pipeline; you control selection, mutation, crossover, termination.
-- **Binary & neural evolution built in**.
-- **Parallelism built into the core**.
-- **Modern .NET 8 API design**.
-
-This makes DarwinGA a practical choice for **research, prototyping, and production‑ready optimization** in C#.
-
-## Repository Structure
-
-- `DarwinGA/` → Core library.
-- `DarwinGA.Example/` → Console demo (OneMax).
-- `DarwinGA.Tests/` → xUnit tests.
-
-## Build
+👉 The algorithm will try to **maximize this value**.
 
 ---
 
-DarwinGA is developed with VS 2022, .NET 8, and C# 12. Last updated: $(date).
+### 3️⃣ (Optional) Customize Mutation & Crossover
 
-## Run Example
+You can control how solutions evolve.
 
-## Run Tests
+#### Mutation
 
-## Dependencies
+```csharp
+public class MyMutation : IMutationStrategy<MySolution>
+{
+    public void Mutate(MySolution solution)
+    {
+        solution.Price += Random.Shared.NextDouble() * 2 - 1;
+    }
+}
+```
 
-- `Accord.Neuro`
-- `Accord.Statistics`
+#### Crossover
+
+```csharp
+public class MyCrossover : ICrossoverStrategy<MySolution>
+{
+    public MySolution Crossover(MySolution a, MySolution b)
+    {
+        return new MySolution
+        {
+            Price = (a.Price + b.Price) / 2
+        };
+    }
+}
+```
+
+👉 These define how evolution behaves.
 
 ---
 
-**Keywords for search**: genetic algorithm .NET, GA library C#, evolutionary algorithms .NET 8, genetic optimization C#, binary chromosome GA, neural network GA.
+## 🚀 Running the Algorithm
 
-**Usage:**
+Once defined, you plug everything into the engine:
 
+```csharp
+var ga = new GeneticAlgorithm<MySolution>(
+    populationSize: 100,
+    mutationRate: 0.05,
+    crossoverRate: 0.7,
+    fitnessEvaluator: new MyFitnessEvaluator(),
+    mutationStrategy: new MyMutation(),
+    crossoverStrategy: new MyCrossover()
+);
+
+ga.Initialize(() => new MySolution
+{
+    Price = Random.Shared.NextDouble() * 100
+});
+
+ga.Run(generations: 200);
+
+var best = ga.GetBestSolution();
+
+Console.WriteLine($"Best price found: {best.Price}");
+```
+
+---
+
+## 🧠 How to Think in Evolutionary Terms
+
+Instead of asking:
+
+❌ “How do I solve this problem?”
+
+You ask:
+
+✅ “What does a solution look like?”
+✅ “How do I measure if it's good?”
+✅ “How can I slightly modify it?”
+
+That’s it.
+
+The algorithm does the rest.
+
+---
+
+## 💡 Key Insight
+
+A good evolutionary setup depends on:
+
+* ✔️ A meaningful fitness function
+* ✔️ A representation that can evolve smoothly
+* ✔️ Balanced mutation (not too random, not too rigid)
+
+---
+
+## ⚠️ Common Mistakes
+
+* ❌ Fitness function too simple → no evolution
+* ❌ Mutation too aggressive → chaos
+* ❌ No diversity → early stagnation
+* ❌ Overfitting to a specific case
+
+---
+
+## 🔥 Real Example Ideas
+
+You can build custom evolutions for:
+
+* 💰 Pricing optimization
+* 📦 Warehouse distribution
+* 🚚 Delivery routes
+* 🧠 AI parameter tuning
+* 🎯 Strategy optimization
+
+---
+
+## 🧬 Final Mental Model
+
+Think of DarwinGA as:
+
+> A system where you define the **rules of survival**,
+> and solutions fight to become the best.
+
+---

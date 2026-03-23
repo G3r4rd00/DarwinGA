@@ -100,8 +100,8 @@ namespace DarwinGA
             {
                 Parallel.For(0, size, ParallelOptions, i =>
                 {
-                    TElement p1 = (TElement)elitesArray[MyRandom.Next(eCount)].Element;
-                    TElement p2 = (TElement)elitesArray[MyRandom.Next(eCount)].Element;
+                    TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+                    TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
 
                     TElement child = Cross.Apply(p1, p2);
                     Mutation.Apply(child, MutationProbability);
@@ -112,8 +112,8 @@ namespace DarwinGA
             {
                 for (int i = 0; i < size; i++)
                 {
-                    TElement p1 = (TElement)elitesArray[MyRandom.Next(eCount)].Element;
-                    TElement p2 = (TElement)elitesArray[MyRandom.Next(eCount)].Element;
+                    TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+                    TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
 
                     TElement child = Cross.Apply(p1, p2);
                     Mutation.Apply(child, MutationProbability);

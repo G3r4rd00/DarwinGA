@@ -227,3 +227,6 @@ FodyWeavers.xsd
 /DarwinGA.Tests/obj/project.nuget.cache
 /DarwinGA.Tests/obj/project.assets.json
 /DarwinGA.Tests/obj/DarwinGA.Tests.csproj.nuget.dgspec.json
+/DarwinGA/obj/Debug/net8.0/DarwinGA.assets.cache
+/DarwinGA/obj/Debug/net8.0/DarwinGA.csproj.AssemblyReference.cache
+/DarwinGA/obj/DarwinGA.csproj.nuget.g.targets

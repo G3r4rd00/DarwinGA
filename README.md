@@ -42,6 +42,11 @@ ga.Start();
 3. **Provide a fitness function**.
 4. **Run the algorithm** with a population size.
 
+### What is an Evolutional?
+
+An **evolutional** is a small model that defines how a chromosome **crosses and mutates**.  
+In the simplest case, you only implement those two functions, and DarwinGA provides the rest of the genetic algorithm machinery (selection, termination, population flow).
+
 ### Parallel Execution
 
 Enable performance‑optimized runs with:

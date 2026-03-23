@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DarwinGA.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a66aca90770bf03975cf62de5ae4b492afdab97b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d4edbfa0bb14acefe2ff9e689b33a395b4b3311d")]
 [assembly: System.Reflection.AssemblyProductAttribute("DarwinGA.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DarwinGA.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -10,6 +10,7 @@ DarwinGA focuses on **clarity, extensibility, and performance**:
 
 - **Generic core** with `GeneticAlgorithm<TElement>`.
 - **Pluggable operators** (`ISelection`, `IMutation<T>`, `ICross<T>`, `ITermination`).
+- **Create an evolution model by defining only crossover and mutation**, keeping the full power of a genetic algorithm with minimal setup.
 - **Built‑in evolution models**:
   - `BinaryEvolutional` for classic bit‑string problems.
   - `ActivationNetworkEvolutional` for optimizing neural networks (`Accord.Neuro`).
@@ -107,6 +108,7 @@ DarwinGA is designed to be **simple yet extensible**, avoiding the heavy configu
 **Key differences:**
 
 - **Minimal boilerplate**: configure a GA in a few lines.
+- **Define only crossover and mutation to build a full evolution model**, keeping the algorithm powerful yet lightweight to set up.
 - **Explicit operators**: no hidden pipeline; you control selection, mutation, crossover, termination.
 - **Binary & neural evolution built in**.
 - **Parallelism built into the core**.

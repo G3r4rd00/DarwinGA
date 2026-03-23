@@ -1,5 +1,4 @@
-﻿
-using AForge.Neuro;
+﻿using Accord.Neuro;
 using DarwinGA.Interfaces;
 
 

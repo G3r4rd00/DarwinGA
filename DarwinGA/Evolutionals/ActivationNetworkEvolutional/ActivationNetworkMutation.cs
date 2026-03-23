@@ -1,4 +1,5 @@
-using AForge.Neuro;
+
+using Accord.Neuro;
 using DarwinGA.Interfaces;
 
 namespace DarwinGA.Evolutionals.ActivationNetworkEvolutional

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DarwinGA.Example")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d4edbfa0bb14acefe2ff9e689b33a395b4b3311d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9f7fa80547b647ce252c8960499764721918ba95")]
 [assembly: System.Reflection.AssemblyProductAttribute("DarwinGA.Example")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DarwinGA.Example")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

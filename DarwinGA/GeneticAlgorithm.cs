@@ -30,6 +30,12 @@ namespace DarwinGA
 
         public ParallelOptions ParallelOptions { get; set; } = new ParallelOptions();
 
+        public bool EnableDiversity { get; set; } = false;
+
+        public IDiversityMetric<TElement>? DiversityMetric { get; set; }
+
+        public IDiversityStrategy<TElement>? DiversityStrategy { get; set; }
+
         public void Run(int populationSize)
         {
             if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
@@ -73,6 +79,18 @@ namespace DarwinGA
                         FitnessValue = Fitness(e)
                     };
                 }
+            }
+
+            if (EnableDiversity)
+            {
+                if (DiversityMetric is null)
+                    throw new InvalidOperationException("DiversityMetric must be set when EnableDiversity is true.");
+                if (DiversityStrategy is null)
+                    throw new InvalidOperationException("DiversityStrategy must be set when EnableDiversity is true.");
+
+                results = DiversityStrategy
+                    .Apply(results, DiversityMetric)
+                    .ToArray();
             }
 
             var elites = Selection.Select(results);

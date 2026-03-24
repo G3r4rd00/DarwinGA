@@ -1,4 +1,5 @@
 using DarwinGA;
+using DarwinGA.Diversity;
 using DarwinGA.Evolutionals.BinaryEvolutional;
 using DarwinGA.Evolutionals.BinaryEvolutional.Crossers;
 using DarwinGA.Evolutionals.BinaryEvolutional.Mutations;
@@ -25,6 +26,18 @@ double CalculateFitness(BinaryEvolutional individual)
 
     return (double)ones / individual.Size; // [0,1]
 }
+
+double HammingDistance(BinaryEvolutional a, BinaryEvolutional b)
+{
+    int diff = 0;
+    for (int i = 0; i < a.Size; i++)
+    {
+        if (a.GetGen(i) != b.GetGen(i))
+            diff++;
+    }
+
+    return diff;
+}
 #endregion
 
 #region 3. Genetic Algorithm Configuration
@@ -43,6 +56,10 @@ var ga = new GeneticAlgorithm<BinaryEvolutional>()
     Fitness = CalculateFitness,
     EnableParallelEvaluation = true,
     MutationProbability = 0.10,
+
+    EnableDiversity = true,
+    DiversityMetric = new DelegateDiversityMetric<BinaryEvolutional>(HammingDistance),
+    DiversityStrategy = new SimilarityPenaltyStrategy<BinaryEvolutional>(penaltyFactor: 0.6),
 
     Mutation = new KFlipMutation(2),
     Cross = new UniformCross(0.5),

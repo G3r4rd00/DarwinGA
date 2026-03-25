@@ -21,10 +21,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="Readme.md" Pack="true" PackagePath="" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Remove="Selections\RouletteSelecction.cs~RF48fcc583.TMP" />
   </ItemGroup>
 

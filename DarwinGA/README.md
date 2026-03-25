@@ -1,4 +1,3 @@
-<div align="center">
 
 # 🧬 DarwinGA
 
@@ -13,7 +12,7 @@ Define your problem. Let evolution find the solution.
 
 [Quick Start](#-quick-start) · [Features](#-features-at-a-glance) · [Operators](#-built-in-operators) · [Examples](#-full-example) · [API Reference](#-api-reference)
 
-</div>
+
 
 ---
 

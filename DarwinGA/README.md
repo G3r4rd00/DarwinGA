@@ -43,6 +43,9 @@ The engine evolves a population of candidate solutions across generations until 
 | 🌍 Built-in **diversity preservation** | ✅ | ❌ |
 | 🧓 **Age-based selection** to prevent stagnation | ✅ | ❌ |
 | 🧠 **Neuroevolution** support (ActivationNetwork) | ✅ | ❌ |
+| 📊 **Generation statistics** (avg/min/max/stddev + diversity index) | ✅ | ❌ |
+| 🏝️ **Island Model** (multi-population + migration) | ✅ | ❌ |
+| ✋ **CancellationToken** support (stop runs safely) | ✅ | ❌ |
 | 🔌 Extensible via interfaces | ✅ | Partial |
 | 🪶 Lightweight — minimal dependencies | ✅ | Varies |
 | 🏗️ Modern .NET 8 with `required` properties | ✅ | Often .NET Standard / Legacy |
@@ -300,7 +303,7 @@ Evolve neural network topologies and weights without backpropagation — ideal f
 
 ## 📋 Full Example
 
-The **OneMax** problem: maximize the number of `1` bits in a binary chromosome.
+The **0/1 Knapsack** problem: choose a subset of items to maximize total value without exceeding a weight capacity.
 
 ```csharp
 using DarwinGA;
@@ -311,24 +314,38 @@ using DarwinGA.Evolutionals.BinaryEvolutional.Mutations;
 using DarwinGA.Selections;
 using DarwinGA.Terminations;
 
-int chromosomeLength = 200;
+var items = new (int weight, double value)[]
+{
+    (12, 60), (7, 34), (11, 55), (8, 40),
+    (9, 42), (6, 30), (13, 70), (5, 25)
+};
+int capacity = 30;
 
 var ga = new GeneticAlgorithm<BinaryEvolutional>()
 {
     NewItem = () =>
     {
-        var chr = new BinaryEvolutional(chromosomeLength);
-        for (int i = 0; i < chromosomeLength; i++)
+        var chr = new BinaryEvolutional(items.Length);
+        for (int i = 0; i < items.Length; i++)
             chr.SetGen(i, MyRandom.NextDouble() < 0.5);
         return chr;
     },
 
     Fitness = individual =>
     {
-        int ones = 0;
+        int w = 0;
+        double v = 0;
         for (int i = 0; i < individual.Size; i++)
-            if (individual.GetGen(i)) ones++;
-        return (double)ones / individual.Size;
+        {
+            if (!individual.GetGen(i)) continue;
+            w += items[i].weight;
+            v += items[i].value;
+        }
+
+        if (w <= capacity) return v;
+
+        int extra = w - capacity;
+        return v - (extra * extra * 5.0); // penalty
     },
 
     MutationProbability    = 0.10,
@@ -352,7 +369,7 @@ var ga = new GeneticAlgorithm<BinaryEvolutional>()
     OnNewGeneration = result =>
     {
         Console.WriteLine(
-            $"Gen {result.GenerationNum,-4} | Fitness: {result.BestFitness:F4}");
+            $"Gen {result.GenerationNum,-4} | Best: {result.BestFitness:F2} | Avg: {result.AverageFitness:F2} | Div: {result.DiversityIndex:F2}");
     }
 };
 
@@ -383,6 +400,7 @@ ga.Run(populationSize: 120);
 | `DiversityStrategy` | `IDiversityStrategy<T>?` | Strategy to adjust fitness based on diversity. |
 | `EnableAgeBasedSelection` | `bool` | Penalize long-lived individuals. Default: `false`. |
 | `AgePenaltyFactor` | `double` | Fitness penalty per generation of age. Default: `0.05`. |
+| `Run(populationSize, cancellationToken)` | method | Overload to support cancellation. |
 
 ### Key Interfaces
 

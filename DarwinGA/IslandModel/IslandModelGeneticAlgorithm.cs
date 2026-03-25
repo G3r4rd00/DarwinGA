@@ -13,6 +13,8 @@ namespace DarwinGA.IslandModel
 
         public int MigrantsPerIsland { get; set; } = 2;
 
+        public MigrationTopology MigrationTopology { get; set; } = MigrationTopology.Ring;
+
         public required Func<GeneticAlgorithm<TElement>> CreateIslandAlgorithm { get; set; }
 
         public required Action<IslandGenerationResult<TElement>> OnNewGeneration { get; set; }
@@ -132,7 +134,7 @@ namespace DarwinGA.IslandModel
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                int destIndex = (i + 1) % IslandsCount;
+                int destIndex = GetDestinationIndex(i);
                 var dest = islands[destIndex].Population;
                 if (dest is null || dest.Count == 0)
                     continue;
@@ -143,6 +145,27 @@ namespace DarwinGA.IslandModel
 
                 ReplaceWorst(dest, gas[destIndex], incoming, cancellationToken);
             }
+        }
+
+        private int GetDestinationIndex(int sourceIndex)
+        {
+            if (IslandsCount <= 1)
+                return 0;
+
+            return MigrationTopology switch
+            {
+                MigrationTopology.Ring => (sourceIndex + 1) % IslandsCount,
+                MigrationTopology.Random => RandomDestinationExcluding(sourceIndex),
+                _ => (sourceIndex + 1) % IslandsCount
+            };
+        }
+
+        private int RandomDestinationExcluding(int sourceIndex)
+        {
+            int dest = MyRandom.NextInt(IslandsCount - 1);
+            if (dest >= sourceIndex)
+                dest++;
+            return dest;
         }
 
         private static void ReplaceWorst(List<TElement> destination, GeneticAlgorithm<TElement> ga, List<TElement> incoming, CancellationToken cancellationToken)

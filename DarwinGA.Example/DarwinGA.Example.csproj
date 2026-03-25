@@ -5,16 +5,10 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DarwinGA\DarwinGA.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="Program.cs" />
-    <Compile Include="Examples\**\*.cs" />
   </ItemGroup>
 
 </Project>

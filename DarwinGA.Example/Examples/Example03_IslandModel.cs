@@ -30,6 +30,7 @@ namespace DarwinGA.Example
             {
                 MigrationIntervalGenerations = 10,
                 MigrantsPerIsland = 2,
+                // MigrationTopology = MigrationTopology.Random,
                 CreateIslandAlgorithm = () =>
                 {
                     var ga = ExampleShared.CreateDefaultKnapsackGA(items, capacity);

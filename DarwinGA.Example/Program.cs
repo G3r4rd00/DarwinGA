@@ -9,8 +9,12 @@ Console.WriteLine("  2) 0/1 Knapsack + CancellationToken");
 Console.WriteLine("  3) 0/1 Knapsack + Island Model (ring migration)");
 Console.WriteLine("  4) Neural network evolution (XOR)\n");
 
-Console.Write("Option (1-3): ");
-var option = Console.ReadLine()?.Trim();
+var option = args.Length > 0 ? args[0].Trim() : null;
+if (string.IsNullOrWhiteSpace(option))
+{
+    Console.Write("Option (1-4): ");
+    option = Console.ReadLine()?.Trim();
+}
 
 switch (option)
 {

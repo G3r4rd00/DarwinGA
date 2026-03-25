@@ -36,6 +36,13 @@ namespace DarwinGA
 
         public IDiversityStrategy<TElement>? DiversityStrategy { get; set; }
 
+        private readonly record struct FitnessStats(
+            int EvaluatedCount,
+            double Average,
+            double Min,
+            double Max,
+            double StdDev);
+
         public void Run(int populationSize)
         {
             if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
@@ -54,10 +61,31 @@ namespace DarwinGA
 
         private List<TElement>? Evolve(List<TElement> population, int size, int generation)
         {
+            var results = EvaluatePopulation(population);
+            results = ApplyDiversityIfEnabled(results);
+            var elites = Selection.Select(results);
+            int eCount = elites.Count();
+            if (eCount == 0)
+                return null;
+
+            var stats = CalculateFitnessStats(results);
+            double diversityIndex = CalculateDiversityIndexIfEnabled(results, elites);
+            var best = elites.First();
+            GenerationResult<TElement> genResult = CreateGenerationResult(best, generation, stats, diversityIndex);
+
+            OnNewGeneration?.Invoke(genResult);
+            if (Termination.ShouldTerminate(genResult))
+                return null;
+
+            return BreedNextPopulation(size, elites, eCount).ToList();
+        }
+
+        private FitnessResult[] EvaluatePopulation(List<TElement> population)
+        {
             // FIX: El c�lculo paralelo anterior era inseguro (race condition con Append en IEnumerable).
             // Se reemplaza por creaci�n de array y asignaci�n indexada segura.
             FitnessResult[] results = new FitnessResult[population.Count];
-            if(EnableParallelEvaluation)
+            if (EnableParallelEvaluation)
             {
                 Parallel.For(0, population.Count, ParallelOptions, i =>
                 {
@@ -69,7 +97,8 @@ namespace DarwinGA
                     };
                 });
             }
-            else {                 
+            else
+            {
                 for (int i = 0; i < population.Count; i++)
                 {
                     var e = population[i];
@@ -81,36 +110,114 @@ namespace DarwinGA
                 }
             }
 
-            if (EnableDiversity)
-            {
-                if (DiversityMetric is null)
-                    throw new InvalidOperationException("DiversityMetric must be set when EnableDiversity is true.");
-                if (DiversityStrategy is null)
-                    throw new InvalidOperationException("DiversityStrategy must be set when EnableDiversity is true.");
+            return results;
+        }
 
-                results = DiversityStrategy
-                    .Apply(results, DiversityMetric)
-                    .ToArray();
+        private FitnessResult[] ApplyDiversityIfEnabled(FitnessResult[] results)
+        {
+            if (!EnableDiversity)
+                return results;
+
+            if (DiversityMetric is null)
+                throw new InvalidOperationException("DiversityMetric must be set when EnableDiversity is true.");
+            if (DiversityStrategy is null)
+                throw new InvalidOperationException("DiversityStrategy must be set when EnableDiversity is true.");
+
+            return DiversityStrategy
+                .Apply(results, DiversityMetric)
+                .ToArray();
+        }
+
+        private static FitnessStats CalculateFitnessStats(FitnessResult[] results)
+        {
+            if (results.Length == 0)
+                return new FitnessStats(0, 0, 0, 0, 0);
+
+            double minFitness = results[0].FitnessValue;
+            double maxFitness = results[0].FitnessValue;
+            double sum = 0;
+            for (int i = 0; i < results.Length; i++)
+            {
+                double v = results[i].FitnessValue;
+                sum += v;
+                if (v < minFitness) minFitness = v;
+                if (v > maxFitness) maxFitness = v;
             }
 
-            var elites = Selection.Select(results);
-            int eCount = elites.Count();
-            if (eCount == 0)
-                return null;
+            double avgFitness = sum / results.Length;
 
-            
-            var best = elites.First();
-            GenerationResult<TElement> genResult = new GenerationResult<TElement>
+            double varianceSum = 0;
+            for (int i = 0; i < results.Length; i++)
             {
-                BestElement =(TElement) best.Element,
+                double d = results[i].FitnessValue - avgFitness;
+                varianceSum += d * d;
+            }
+
+            double stdDevFitness = Math.Sqrt(varianceSum / results.Length);
+            return new FitnessStats(results.Length, avgFitness, minFitness, maxFitness, stdDevFitness);
+        }
+
+        private double CalculateDiversityIndexIfEnabled(FitnessResult[] results, IEnumerable<FitnessResult> elites)
+        {
+            if (!EnableDiversity || DiversityMetric is null)
+                return 0;
+
+            const int maxPairsForFullPopulation = 50_000;
+
+            int m = results.Length;
+            long pairs = ((long)m * (m - 1)) / 2;
+
+            IReadOnlyList<FitnessResult> diversitySet;
+            if (pairs <= maxPairsForFullPopulation)
+            {
+                diversitySet = results;
+            }
+            else
+            {
+                diversitySet = elites as IReadOnlyList<FitnessResult> ?? elites.ToArray();
+                m = diversitySet.Count;
+                pairs = ((long)m * (m - 1)) / 2;
+            }
+
+            if (pairs <= 0)
+                return 0;
+
+            double distSum = 0;
+            for (int i = 0; i < m; i++)
+            {
+                var a = (TElement)diversitySet[i].Element;
+                for (int j = i + 1; j < m; j++)
+                {
+                    var b = (TElement)diversitySet[j].Element;
+                    distSum += DiversityMetric.Distance(a, b);
+                }
+            }
+
+            return distSum / pairs;
+        }
+
+        private static GenerationResult<TElement> CreateGenerationResult(
+            FitnessResult best,
+            int generation,
+            FitnessStats stats,
+            double diversityIndex)
+        {
+            return new GenerationResult<TElement>
+            {
+                BestElement = (TElement)best.Element,
                 BestFitness = best.FitnessValue,
-                GenerationNum = generation
+                GenerationNum = generation,
+                EvaluatedCount = stats.EvaluatedCount,
+                AverageFitness = stats.Average,
+                MinFitness = stats.Min,
+                MaxFitness = stats.Max,
+                FitnessStdDev = stats.StdDev,
+                DiversityIndex = diversityIndex
             };
+        }
 
-            OnNewGeneration?.Invoke(genResult);
-            if (Termination.ShouldTerminate(genResult))
-                return null;
-
+        private TElement[] BreedNextPopulation(int size, IEnumerable<FitnessResult> elites, int eCount)
+        {
             var next = new TElement[size];
             var elitesArray = elites as FitnessResult[] ?? elites.ToArray();
 
@@ -118,28 +225,28 @@ namespace DarwinGA
             {
                 Parallel.For(0, size, ParallelOptions, i =>
                 {
-                    TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-                    TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-
-                    TElement child = Cross.Apply(p1, p2);
-                    Mutation.Apply(child, MutationProbability);
-                    next[i] = child;
+                    next[i] = CreateChild(elitesArray, eCount);
                 });
             }
             else
             {
                 for (int i = 0; i < size; i++)
                 {
-                    TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-                    TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-
-                    TElement child = Cross.Apply(p1, p2);
-                    Mutation.Apply(child, MutationProbability);
-                    next[i] = child;
+                    next[i] = CreateChild(elitesArray, eCount);
                 }
             }
-            
-            return next.ToList();
+
+            return next;
+        }
+
+        private TElement CreateChild(FitnessResult[] elitesArray, int eCount)
+        {
+            TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+            TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+
+            TElement child = Cross.Apply(p1, p2);
+            Mutation.Apply(child, MutationProbability);
+            return child;
         }
     }
 }

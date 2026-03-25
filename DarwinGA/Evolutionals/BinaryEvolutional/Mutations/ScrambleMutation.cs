@@ -13,10 +13,12 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Mutations
             
             if (chr.Size < 2) return;
 
-            int start = MyRandom.NextInt(chr.Size);
-            int end = MyRandom.NextInt(start, chr.Size);
+            int start = MyRandom.NextInt(0, chr.Size - 1);
+            int end = MyRandom.NextInt(start + 1, chr.Size);
             int len = end - start + 1;
-            if (len <= 1) return;
+
+            var original = new bool[len];
+            for (int k = 0; k < len; k++) original[k] = chr.GetGen(start + k);
 
             var buffer = new List<bool>(len);
             for (int k = start; k <= end; k++) buffer.Add(chr.GetGen(k));
@@ -27,6 +29,25 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Mutations
                 int r = MyRandom.NextInt(n + 1);
                 (buffer[n], buffer[r]) = (buffer[r], buffer[n]);
             }
+
+            bool changed = false;
+            for (int k = 0; k < len; k++)
+            {
+                if (buffer[k] != original[k])
+                {
+                    changed = true;
+                    break;
+                }
+            }
+
+            if (!changed)
+            {
+                int i = MyRandom.NextInt(0, len);
+                int j = MyRandom.NextInt(0, len - 1);
+                if (j >= i) j++;
+                (buffer[i], buffer[j]) = (buffer[j], buffer[i]);
+            }
+
             for (int k = 0; k < len; k++) chr.SetGen(start + k, buffer[k]);
         }
     }

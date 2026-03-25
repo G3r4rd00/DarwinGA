@@ -1,6 +1,7 @@
 
 using DarwinGA.Interfaces;
 using DarwinGA.Selections;
+using System.Threading;
 
 namespace DarwinGA
 {
@@ -43,7 +44,9 @@ namespace DarwinGA
             double Max,
             double StdDev);
 
-        public void Run(int populationSize)
+        public void Run(int populationSize) => Run(populationSize, CancellationToken.None);
+
+        public void Run(int populationSize, CancellationToken cancellationToken)
         {
             if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
             {
@@ -56,12 +59,17 @@ namespace DarwinGA
 
             int g = 0;
             while (population != null)
-                population = Evolve(population, populationSize, g++);
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                population = Evolve(population, populationSize, g++, cancellationToken);
+            }
         }
 
-        private List<TElement>? Evolve(List<TElement> population, int size, int generation)
+        private List<TElement>? Evolve(List<TElement> population, int size, int generation, CancellationToken cancellationToken)
         {
-            var results = EvaluatePopulation(population);
+            var parallelOptions = CreateParallelOptions(cancellationToken);
+
+            var results = EvaluatePopulation(population, parallelOptions);
             results = ApplyDiversityIfEnabled(results);
             var elites = Selection.Select(results);
             int eCount = elites.Count();
@@ -77,17 +85,28 @@ namespace DarwinGA
             if (Termination.ShouldTerminate(genResult))
                 return null;
 
-            return BreedNextPopulation(size, elites, eCount).ToList();
+            cancellationToken.ThrowIfCancellationRequested();
+            return BreedNextPopulation(size, elites, eCount, parallelOptions).ToList();
         }
 
-        private FitnessResult[] EvaluatePopulation(List<TElement> population)
+        private ParallelOptions CreateParallelOptions(CancellationToken cancellationToken)
+        {
+            return new ParallelOptions
+            {
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = ParallelOptions.MaxDegreeOfParallelism,
+                TaskScheduler = ParallelOptions.TaskScheduler
+            };
+        }
+
+        private FitnessResult[] EvaluatePopulation(List<TElement> population, ParallelOptions parallelOptions)
         {
             // FIX: El c�lculo paralelo anterior era inseguro (race condition con Append en IEnumerable).
             // Se reemplaza por creaci�n de array y asignaci�n indexada segura.
             FitnessResult[] results = new FitnessResult[population.Count];
             if (EnableParallelEvaluation)
             {
-                Parallel.For(0, population.Count, ParallelOptions, i =>
+                Parallel.For(0, population.Count, parallelOptions, i =>
                 {
                     var e = population[i];
                     results[i] = new FitnessResult
@@ -216,14 +235,14 @@ namespace DarwinGA
             };
         }
 
-        private TElement[] BreedNextPopulation(int size, IEnumerable<FitnessResult> elites, int eCount)
+        private TElement[] BreedNextPopulation(int size, IEnumerable<FitnessResult> elites, int eCount, ParallelOptions parallelOptions)
         {
             var next = new TElement[size];
             var elitesArray = elites as FitnessResult[] ?? elites.ToArray();
 
             if (EnableParallelBreeding)
             {
-                Parallel.For(0, size, ParallelOptions, i =>
+                Parallel.For(0, size, parallelOptions, i =>
                 {
                     next[i] = CreateChild(elitesArray, eCount);
                 });

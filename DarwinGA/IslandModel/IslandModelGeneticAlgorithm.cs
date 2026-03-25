@@ -48,9 +48,11 @@ namespace DarwinGA.IslandModel
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                int islandIndex = i;
+
                 var ga = CreateIslandAlgorithm();
 
-                ga.OnNewGeneration = result => lastResults[i] = result;
+                ga.OnNewGeneration = result => lastResults[islandIndex] = result;
 
                 islandGAs[i] = ga;
                 islands[i] = new IslandState<TElement>(CreatePopulation(populationSizePerIsland, ga.NewItem));

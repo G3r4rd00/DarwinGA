@@ -44,6 +44,28 @@ namespace DarwinGA
             double Max,
             double StdDev);
 
+        internal List<TElement>? EvolveOneGenerationForIsland(List<TElement> population, int size, int generation, CancellationToken cancellationToken)
+            => Evolve(population, size, generation, cancellationToken);
+
+        internal FitnessResult[] EvaluateForIsland(List<TElement> population, CancellationToken cancellationToken)
+            => EvaluatePopulation(population, CreateParallelOptions(cancellationToken));
+
+        internal List<TElement> GetTopIndividuals(List<TElement> population, int take, CancellationToken cancellationToken)
+        {
+            if (take <= 0)
+                return new List<TElement>();
+
+            var results = EvaluateForIsland(population, cancellationToken);
+            results = ApplyDiversityIfEnabled(results);
+            var elites = Selection.Select(results)
+                .OrderByDescending(x => x.FitnessValue)
+                .Take(take)
+                .Select(x => (TElement)x.Element)
+                .ToList();
+
+            return elites;
+        }
+
         public void Run(int populationSize) => Run(populationSize, CancellationToken.None);
 
         public void Run(int populationSize, CancellationToken cancellationToken)

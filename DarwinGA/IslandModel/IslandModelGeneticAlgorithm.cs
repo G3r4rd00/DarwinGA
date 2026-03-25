@@ -40,6 +40,7 @@ namespace DarwinGA.IslandModel
 
             var islands = new IslandState<TElement>[IslandsCount];
             var islandGAs = new GeneticAlgorithm<TElement>[IslandsCount];
+            var lastResults = new GenerationResult<TElement>?[IslandsCount];
 
             for (int i = 0; i < IslandsCount; i++)
             {
@@ -47,14 +48,7 @@ namespace DarwinGA.IslandModel
 
                 var ga = CreateIslandAlgorithm();
 
-                ga.OnNewGeneration = result =>
-                {
-                    OnNewGeneration?.Invoke(new IslandGenerationResult<TElement>
-                    {
-                        IslandIndex = i,
-                        Result = result
-                    });
-                };
+                ga.OnNewGeneration = result => lastResults[i] = result;
 
                 islandGAs[i] = ga;
                 islands[i] = new IslandState<TElement>(CreatePopulation(populationSizePerIsland, ga.NewItem));
@@ -78,6 +72,34 @@ namespace DarwinGA.IslandModel
 
                 if (!anyAlive)
                     return;
+
+                var resultsByIsland = new GenerationResult<TElement>[IslandsCount];
+                int bestIsland = -1;
+                GenerationResult<TElement>? bestResult = null;
+
+                for (int i = 0; i < IslandsCount; i++)
+                {
+                    var r = lastResults[i];
+                    if (r is null)
+                        continue;
+
+                    resultsByIsland[i] = r;
+                    if (bestResult is null || r.BestFitness > bestResult.BestFitness)
+                    {
+                        bestResult = r;
+                        bestIsland = i;
+                    }
+                }
+
+                if (bestResult is not null)
+                {
+                    OnNewGeneration?.Invoke(new IslandGenerationResult<TElement>
+                    {
+                        BestIslandIndex = bestIsland,
+                        BestResult = bestResult,
+                        ResultsByIsland = resultsByIsland
+                    });
+                }
 
                 generation++;
 

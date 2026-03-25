@@ -21,22 +21,22 @@ namespace DarwinGA.Example
         {
             return
             [
-                new KnapsackItem(12, 24),
-                new KnapsackItem(7, 13),
-                new KnapsackItem(11, 23),
-                new KnapsackItem(8, 15),
-                new KnapsackItem(9, 16),
-                new KnapsackItem(6, 12),
-                new KnapsackItem(13, 28),
-                new KnapsackItem(5, 10),
-                new KnapsackItem(14, 30),
-                new KnapsackItem(4, 8),
-                new KnapsackItem(10, 20),
-                new KnapsackItem(3, 6),
-                new KnapsackItem(15, 32),
-                new KnapsackItem(2, 4),
-                new KnapsackItem(16, 35),
-                new KnapsackItem(1, 2),
+                new KnapsackItem(12, 60),
+                new KnapsackItem(7, 34),
+                new KnapsackItem(11, 55),
+                new KnapsackItem(8, 40),
+                new KnapsackItem(9, 42),
+                new KnapsackItem(6, 30),
+                new KnapsackItem(13, 70),
+                new KnapsackItem(5, 25),
+                new KnapsackItem(14, 76),
+                new KnapsackItem(4, 18),
+                new KnapsackItem(10, 50),
+                new KnapsackItem(3, 14),
+                new KnapsackItem(15, 82),
+                new KnapsackItem(2, 10),
+                new KnapsackItem(16, 90),
+                new KnapsackItem(1, 6),
             ];
         }
 
@@ -68,7 +68,7 @@ namespace DarwinGA.Example
             // Penalize overweight solutions aggressively so feasible solutions dominate.
             // penalty grows with extra weight.
             int extra = w - capacity;
-            return v - (extra * extra);
+            return v - (extra * extra * 5.0);
         }
 
         public static double HammingDistance(BinaryEvolutional a, BinaryEvolutional b)
@@ -98,7 +98,7 @@ namespace DarwinGA.Example
                 Fitness = e => KnapsackFitnessWithPenalty(e, items, capacity),
                 EnableParallelEvaluation = true,
                 EnableParallelBreeding = true,
-                MutationProbability = 0.10,
+                MutationProbability = 0.15,
 
                 EnableDiversity = true,
                 DiversityMetric = new DelegateDiversityMetric<BinaryEvolutional>(HammingDistance),
@@ -106,7 +106,7 @@ namespace DarwinGA.Example
 
                 Mutation = new KFlipMutation(2),
                 Cross = new UniformCross(0.5),
-                Selection = new TournamentSelection(8),
+                Selection = new TournamentSelection(6),
                 Termination = new GenerationNumTermination(50),
 
                 OnNewGeneration = _ => { }

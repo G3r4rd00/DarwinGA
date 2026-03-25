@@ -33,16 +33,16 @@ namespace DarwinGA.Example
                 CreateIslandAlgorithm = () =>
                 {
                     var ga = ExampleShared.CreateDefaultKnapsackGA(items, capacity);
-                    ga.Termination = new GenerationNumTermination(250);
+                    ga.Termination = new GenerationNumTermination(1000);
                     return ga;
                 },
                 OnNewGeneration = islandResult =>
                 {
-                    var r = islandResult.Result;
+                    var r = islandResult.BestResult;
                     if (r.GenerationNum % 10 == 0)
                     {
                         var (w, v, selected) = ExampleShared.EvaluateKnapsack(r.BestElement, items);
-                        Console.WriteLine($"Island {islandResult.IslandIndex} | Gen: {r.GenerationNum,-4} | Fit: {r.BestFitness,8:F2} | W: {w,3}/{capacity} | V: {v,6:F1} | #:{selected,2} | Avg: {r.AverageFitness,8:F2} | Div: {r.DiversityIndex,6:F2}");
+                        Console.WriteLine($"BestIsland {islandResult.BestIslandIndex} | Gen: {r.GenerationNum,-4} | Fit: {r.BestFitness,8:F2} | W: {w,3}/{capacity} | V: {v,6:F1} | #:{selected,2} | Avg: {r.AverageFitness,8:F2} | Div: {r.DiversityIndex,6:F2}");
                     }
                 }
             };

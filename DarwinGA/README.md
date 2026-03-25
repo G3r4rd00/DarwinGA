@@ -11,6 +11,11 @@
 **DarwinGA** is a modular, extensible genetic algorithm framework for .NET 8.  
 Define your problem. Let evolution find the solution.
 
+**Author / Contact**
+
+- Email: `gerardotous@gmail.com`
+- LinkedIn: https://www.linkedin.com/in/gerardo-tous-vallespir-42491636/
+
 [Quick Start](#-quick-start) · [Features](#-features-at-a-glance) · [Operators](#-built-in-operators) · [Examples](#-full-example) · [API Reference](#-api-reference)
 
 
@@ -466,6 +471,13 @@ DarwinGA can optimize any problem you can encode as a chromosome:
 Contributions are welcome! Feel free to open issues or submit pull requests.
 
 🔗 **Repository:** [https://github.com/G3r4rd00/DarwinGA](https://github.com/G3r4rd00/DarwinGA)
+
+---
+
+## 📫 Contact
+
+- Email: `gerardotous@gmail.com`
+- LinkedIn: https://www.linkedin.com/in/gerardo-tous-vallespir-42491636/
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)

@@ -7,8 +7,10 @@
     <PackageId>DarwinGA</PackageId>
     <Version>1.0.2</Version>
     <Authors>Gerardo Tous</Authors>
-    <Company></Company>
+    <Company>Gerardo Tous</Company>
     <Description>Genetic algorithm engine for optimization and planning.</Description>
+    <Copyright>Copyright (c) 2026 Gerardo Tous</Copyright>
+    <PackageReleaseNotes>Island model (Ring/Random), generation statistics (avg/min/max/stddev + diversity index), CancellationToken support, and improved examples &amp; tests.</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/G3r4rd00/DarwinGA</PackageProjectUrl>
     <RepositoryUrl>https://github.com/G3r4rd00/DarwinGA</RepositoryUrl>

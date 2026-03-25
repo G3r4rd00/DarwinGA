@@ -6,6 +6,7 @@
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![NuGet](https://img.shields.io/nuget/v/DarwinGA)](https://www.nuget.org/packages/DarwinGA)
+[![GitHub](https://img.shields.io/badge/GitHub-G3r4rd00%2FDarwinGA-181717?logo=github)](https://github.com/G3r4rd00/DarwinGA)
 
 **DarwinGA** is a modular, extensible genetic algorithm framework for .NET 8.  
 Define your problem. Let evolution find the solution.
@@ -446,6 +447,8 @@ DarwinGA can optimize any problem you can encode as a chromosome:
 
 Contributions are welcome! Feel free to open issues or submit pull requests.
 
+🔗 **Repository:** [https://github.com/G3r4rd00/DarwinGA](https://github.com/G3r4rd00/DarwinGA)
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
@@ -464,6 +467,6 @@ This project is licensed under the [MIT License](https://opensource.org/licenses
 
 **Made with 🧬 by [Gerardo Tous](https://github.com/G3r4rd00)**
 
-*If DarwinGA helped your project, consider giving it a ⭐ on GitHub!*
+*If DarwinGA helped your project, consider giving it a ⭐ on [GitHub](https://github.com/G3r4rd00/DarwinGA)!*
 
 </div>

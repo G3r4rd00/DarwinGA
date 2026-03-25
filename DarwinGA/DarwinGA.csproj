@@ -10,7 +10,9 @@
     <Company></Company>
     <Description>Genetic algorithm engine for optimization and planning.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/G3r4rd00/DarwinGA</PackageProjectUrl>
     <RepositoryUrl>https://github.com/G3r4rd00/DarwinGA</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageTags>genetic-algorithm;optimization;dotnet</PackageTags>
     <PackageReadmeFile>Readme.md</PackageReadmeFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>

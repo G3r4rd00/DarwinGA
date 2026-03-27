@@ -9,6 +9,8 @@ namespace DarwinGA
     {
         public double MutationProbability { get; set; } = 0.01f;
 
+        public IReinsert<TElement>? Reinsert { get; set; }
+
         public required Func<TElement> NewItem { get; set; }
         public required Func<TElement, double> Fitness { get; set; }
         public required Action<GenerationResult<TElement>> OnNewGeneration { get; set; }
@@ -275,6 +277,13 @@ namespace DarwinGA
                 {
                     next[i] = CreateChild(elitesArray, eCount);
                 }
+            }
+
+            if(Reinsert != null)
+            {
+                TElement[] toReinsert = Reinsert.GetSurvivors(elitesArray);
+                for(int i = 0;i < toReinsert.Length;i++ )
+                    next[i] = toReinsert[i];
             }
 
             return next;

@@ -50,6 +50,7 @@ The engine evolves a population of candidate solutions across generations until 
 | 🧠 **Neuroevolution** support (ActivationNetwork) | ✅ | ❌ |
 | 📊 **Generation statistics** (avg/min/max/stddev + diversity index) | ✅ | ❌ |
 | 🏝️ **Island Model** (multi-population + migration) | ✅ | ❌ |
+| ♻️ **Reinsertion** strategies (carry elites to next generation) | ✅ | ❌ |
 | ✋ **CancellationToken** support (stop runs safely) | ✅ | ❌ |
 | 🔌 Extensible via interfaces | ✅ | Partial |
 | 🪶 Lightweight — minimal dependencies | ✅ | Varies |
@@ -233,6 +234,35 @@ Termination = new FitnessThresholdTermination(0.98)
 
 ---
 
+### ♻️ Reinsertion Strategies (1)
+
+Control which individuals from the current generation survive directly into the next (elitism):
+
+| Strategy | Class | Description |
+|---|---|---|
+| **Best** | `ReinsertBest<T>` | Carries the top *N* fittest individuals unchanged into the next generation. |
+
+```csharp
+// Keep the single best individual across generations (default)
+Reinsert = new ReinsertBest<MyChromosome>(count: 1)
+
+// Keep the top 3 elites
+Reinsert = new ReinsertBest<MyChromosome>(count: 3)
+```
+
+Reinsertion prevents the best solution found so far from being lost to random variation. When `Reinsert` is set, the survivors it returns are injected at the start of the next population before breeding fills the rest.
+
+You can define custom strategies by implementing `IReinsert<T>`:
+
+```csharp
+public interface IReinsert<T> where T : IGAEvolutional<T>
+{
+    T[] GetSurvivors(FitnessResult[] elites);
+}
+```
+
+---
+
 ### 🌍 Diversity Preservation
 
 Prevent premature convergence by penalizing similar individuals:
@@ -396,6 +426,7 @@ ga.Run(populationSize: 120);
 | `Selection` | `ISelection` | Parent selection strategy. **Required.** |
 | `Termination` | `ITermination` | When to stop evolving. **Required.** |
 | `OnNewGeneration` | `Action<GenerationResult<T>>` | Callback invoked after each generation. **Required.** |
+| `Reinsert` | `IReinsert<T>?` | Reinsertion strategy. Survivors are carried unchanged into the next generation. Optional. |
 | `MutationProbability` | `double` | Probability of mutating each child. Default: `0.01`. |
 | `EnableParallelEvaluation` | `bool` | Evaluate fitness in parallel. Default: `false`. |
 | `EnableParallelBreeding` | `bool` | Breed children in parallel. Default: `false`. |
@@ -418,6 +449,7 @@ ga.Run(populationSize: 120);
 | `ITermination` | `bool ShouldTerminate(GenerationResultBase result)` — stop condition. |
 | `IDiversityMetric<T>` | `double Distance(T a, T b)` — measure distance between individuals. |
 | `IDiversityStrategy<T>` | Adjust fitness scores to reward diversity. |
+| `IReinsert<T>` | `T[] GetSurvivors(FitnessResult[] elites)` — select individuals to carry unchanged into the next generation. |
 
 ---
 

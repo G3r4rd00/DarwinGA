@@ -13,6 +13,12 @@ namespace DarwinGA
         {
             return _rand.Next(minValue, maxValue);
         }
+
+        public static double NextDouble(double minValue, double maxValue)
+        {
+            return _rand.NextDouble() * (maxValue - minValue) + minValue;
+        }
+
         public static double NextDouble()
         {
             return _rand.NextDouble();
@@ -25,7 +31,7 @@ namespace DarwinGA
 
         public static int NextInt(int maxValue)
         {
-            return _rand.Next( maxValue);
+            return _rand.Next(maxValue);
         }
 
 

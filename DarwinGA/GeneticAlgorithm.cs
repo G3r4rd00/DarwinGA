@@ -1,10 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+
 using DarwinGA.Interfaces;
 using DarwinGA.Selections;
+using System.Linq;
+using System.Threading;
 
 namespace DarwinGA
 {
@@ -18,32 +16,69 @@ namespace DarwinGA
 
         public required ISelection Selection { get; set; }
 
-        public required IMutation<TElement> Mutation { get; set; }
+        public required IMutation<TElement> Mutation { get; set; } 
 
         public required ICross<TElement> Cross { get; set; }
 
         public required ITermination Termination { get; set; }
 
         public IReinsert<TElement>? Reinsert { get; set; }
-
+        
         public bool EnableAgeBasedSelection { get; set; } = false;
-
+        
         public double AgePenaltyFactor { get; set; } = 0.05;
 
         public bool EnableParallelEvaluation { get; set; } = false;
-
+        
         public bool EnableParallelBreeding { get; set; } = false;
 
         public ParallelOptions ParallelOptions { get; set; } = new ParallelOptions();
 
-        public void Run(int populationSize, CancellationToken cancellationToken = default)
+        public bool EnableDiversity { get; set; } = false;
+
+        public IDiversityMetric<TElement>? DiversityMetric { get; set; }
+
+        public IDiversityStrategy<TElement>? DiversityStrategy { get; set; }
+
+        private readonly record struct FitnessStats(
+            int EvaluatedCount,
+            double Average,
+            double Min,
+            double Max,
+            double StdDev);
+
+        internal List<TElement>? EvolveOneGenerationForIsland(List<TElement> population, int size, int generation, CancellationToken cancellationToken)
+            => Evolve(population, size, generation, cancellationToken);
+
+        internal FitnessResult[] EvaluateForIsland(List<TElement> population, CancellationToken cancellationToken)
+            => EvaluatePopulation(population, CreateParallelOptions(cancellationToken));
+
+        internal List<TElement> GetTopIndividuals(List<TElement> population, int take, CancellationToken cancellationToken)
+        {
+            if (take <= 0)
+                return new List<TElement>();
+
+            var results = EvaluateForIsland(population, cancellationToken);
+            results = ApplyDiversityIfEnabled(results);
+            var elites = Selection.Select(results)
+                .OrderByDescending(x => x.FitnessValue)
+                .Take(take)
+                .Select(x => (TElement)x.Element)
+                .ToList();
+
+            return elites;
+        }
+
+        public void Run(int populationSize) => Run(populationSize, CancellationToken.None);
+
+        public void Run(int populationSize, CancellationToken cancellationToken)
         {
             if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
             {
                 Selection = new AgeBasedSelection(Selection, AgePenaltyFactor);
             }
 
-            List<TElement> population = new(populationSize);
+            List<TElement> population = new List<TElement>(populationSize);
             for (int i = 0; i < populationSize; i++)
                 population.Add(NewItem());
 
@@ -57,99 +92,46 @@ namespace DarwinGA
 
         private List<TElement>? Evolve(List<TElement> population, int size, int generation, CancellationToken cancellationToken)
         {
-            FitnessResult[] results = new FitnessResult[population.Count];
-            if (EnableParallelEvaluation)
-            {
-                Parallel.For(0, population.Count, ParallelOptions, i =>
-                {
-                    var e = population[i];
-                    results[i] = new FitnessResult
-                    {
-                        Element = e,
-                        FitnessValue = Fitness(e)
-                    };
-                });
-            }
-            else
-            {
-                for (int i = 0; i < population.Count; i++)
-                {
-                    var e = population[i];
-                    results[i] = new FitnessResult
-                    {
-                        Element = e,
-                        FitnessValue = Fitness(e)
-                    };
-                }
-            }
+            var parallelOptions = CreateParallelOptions(cancellationToken);
 
-            var elitesArray = Selection.Select(results).ToArray();
-            int eCount = elitesArray.Length;
+            var results = EvaluatePopulation(population, parallelOptions);
+            results = ApplyDiversityIfEnabled(results);
+            var elites = Selection.Select(results);
+            int eCount = elites.Count();
             if (eCount == 0)
                 return null;
 
-            var best = elitesArray.OrderByDescending(e => e.FitnessValue).First();
-            GenerationResult<TElement> genResult = new GenerationResult<TElement>
-            {
-                BestElement = (TElement)best.Element,
-                BestFitness = best.FitnessValue,
-                GenerationNum = generation
-            };
+            var stats = CalculateFitnessStats(results);
+            double diversityIndex = CalculateDiversityIndexIfEnabled(results, elites);
+            var best = elites.First();
+            GenerationResult<TElement> genResult = CreateGenerationResult(best, generation, stats, diversityIndex);
 
             OnNewGeneration?.Invoke(genResult);
             if (Termination.ShouldTerminate(genResult))
                 return null;
 
-            var next = new TElement[size];
-
-            if (EnableParallelBreeding)
-            {
-                Parallel.For(0, size, ParallelOptions, i =>
-                {
-                    TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-                    TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-
-                    TElement child = Cross.Apply(p1, p2);
-                    Mutation.Apply(child, MutationProbability);
-                    next[i] = child;
-                });
-            }
-            else
-            {
-                for (int i = 0; i < size; i++)
-                {
-                    TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-                    TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-
-                    TElement child = Cross.Apply(p1, p2);
-                    Mutation.Apply(child, MutationProbability);
-                    next[i] = child;
-                }
-            }
-
-            if (Reinsert != null && elitesArray.Length > 0)
-            {
-                var survivors = Reinsert.GetSurvivors(elitesArray);
-                for (int i = 0; i < survivors.Length && i < next.Length; i++)
-                    next[i] = survivors[i];
-            }
-
-            return next.ToList();
+            cancellationToken.ThrowIfCancellationRequested();
+            return BreedNextPopulation(size, elites, eCount, parallelOptions).ToList();
         }
 
-        public FitnessResult[] EvaluateForIsland(IReadOnlyList<TElement> population, CancellationToken cancellationToken)
+        private ParallelOptions CreateParallelOptions(CancellationToken cancellationToken)
         {
-            var results = new FitnessResult[population.Count];
+            return new ParallelOptions
+            {
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = ParallelOptions.MaxDegreeOfParallelism,
+                TaskScheduler = ParallelOptions.TaskScheduler
+            };
+        }
+
+        private FitnessResult[] EvaluatePopulation(List<TElement> population, ParallelOptions parallelOptions)
+        {
+            // FIX: El c�lculo paralelo anterior era inseguro (race condition con Append en IEnumerable).
+            // Se reemplaza por creaci�n de array y asignaci�n indexada segura.
+            FitnessResult[] results = new FitnessResult[population.Count];
             if (EnableParallelEvaluation)
             {
-                var options = new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = ParallelOptions.MaxDegreeOfParallelism,
-                    TaskScheduler = ParallelOptions.TaskScheduler,
-                    CancellationToken = cancellationToken
-                };
-
-                Parallel.For(0, population.Count, options, i =>
+                Parallel.For(0, population.Count, parallelOptions, i =>
                 {
                     var e = population[i];
                     results[i] = new FitnessResult
@@ -163,7 +145,6 @@ namespace DarwinGA
             {
                 for (int i = 0; i < population.Count; i++)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
                     var e = population[i];
                     results[i] = new FitnessResult
                     {
@@ -176,59 +157,147 @@ namespace DarwinGA
             return results;
         }
 
-        public List<TElement> GetTopIndividuals(IReadOnlyList<TElement> population, int count, CancellationToken cancellationToken)
+        private FitnessResult[] ApplyDiversityIfEnabled(FitnessResult[] results)
         {
-            if (population.Count == 0 || count <= 0)
-                return new List<TElement>();
+            if (!EnableDiversity)
+                return results;
 
-            var scored = EvaluateForIsland(population, cancellationToken);
-            return scored
-                .OrderByDescending(r => r.FitnessValue)
-                .Take(Math.Min(count, scored.Length))
-                .Select(r => (TElement)r.Element)
-                .ToList();
+            if (DiversityMetric is null)
+                throw new InvalidOperationException("DiversityMetric must be set when EnableDiversity is true.");
+            if (DiversityStrategy is null)
+                throw new InvalidOperationException("DiversityStrategy must be set when EnableDiversity is true.");
+
+            return DiversityStrategy
+                .Apply(results, DiversityMetric)
+                .ToArray();
         }
 
-        public List<TElement>? EvolveOneGenerationForIsland(List<TElement> population, int size, int generation, CancellationToken cancellationToken)
+        private static FitnessStats CalculateFitnessStats(FitnessResult[] results)
         {
-            var results = EvaluateForIsland(population, cancellationToken);
-            var elitesArray = Selection.Select(results).ToArray();
-            int eCount = elitesArray.Length;
-            if (eCount == 0)
-                return null;
+            if (results.Length == 0)
+                return new FitnessStats(0, 0, 0, 0, 0);
 
-            var best = elitesArray.OrderByDescending(e => e.FitnessValue).First();
-            GenerationResult<TElement> genResult = new GenerationResult<TElement>
+            double minFitness = results[0].FitnessValue;
+            double maxFitness = results[0].FitnessValue;
+            double sum = 0;
+            for (int i = 0; i < results.Length; i++)
+            {
+                double v = results[i].FitnessValue;
+                sum += v;
+                if (v < minFitness) minFitness = v;
+                if (v > maxFitness) maxFitness = v;
+            }
+
+            double avgFitness = sum / results.Length;
+
+            double varianceSum = 0;
+            for (int i = 0; i < results.Length; i++)
+            {
+                double d = results[i].FitnessValue - avgFitness;
+                varianceSum += d * d;
+            }
+
+            double stdDevFitness = Math.Sqrt(varianceSum / results.Length);
+            return new FitnessStats(results.Length, avgFitness, minFitness, maxFitness, stdDevFitness);
+        }
+
+        private double CalculateDiversityIndexIfEnabled(FitnessResult[] results, IEnumerable<FitnessResult> elites)
+        {
+            if (!EnableDiversity || DiversityMetric is null)
+                return 0;
+
+            const int maxPairsForFullPopulation = 50_000;
+
+            int m = results.Length;
+            long pairs = ((long)m * (m - 1)) / 2;
+
+            IReadOnlyList<FitnessResult> diversitySet;
+            if (pairs <= maxPairsForFullPopulation)
+            {
+                diversitySet = results;
+            }
+            else
+            {
+                diversitySet = elites as IReadOnlyList<FitnessResult> ?? elites.ToArray();
+                m = diversitySet.Count;
+                pairs = ((long)m * (m - 1)) / 2;
+            }
+
+            if (pairs <= 0)
+                return 0;
+
+            double distSum = 0;
+            for (int i = 0; i < m; i++)
+            {
+                var a = (TElement)diversitySet[i].Element;
+                for (int j = i + 1; j < m; j++)
+                {
+                    var b = (TElement)diversitySet[j].Element;
+                    distSum += DiversityMetric.Distance(a, b);
+                }
+            }
+
+            return distSum / pairs;
+        }
+
+        private static GenerationResult<TElement> CreateGenerationResult(
+            FitnessResult best,
+            int generation,
+            FitnessStats stats,
+            double diversityIndex)
+        {
+            return new GenerationResult<TElement>
             {
                 BestElement = (TElement)best.Element,
                 BestFitness = best.FitnessValue,
-                GenerationNum = generation
+                GenerationNum = generation,
+                EvaluatedCount = stats.EvaluatedCount,
+                AverageFitness = stats.Average,
+                MinFitness = stats.Min,
+                MaxFitness = stats.Max,
+                FitnessStdDev = stats.StdDev,
+                DiversityIndex = diversityIndex
             };
+        }
 
-            OnNewGeneration?.Invoke(genResult);
-            if (Termination.ShouldTerminate(genResult))
-                return null;
-
+        private TElement[] BreedNextPopulation(int size, IEnumerable<FitnessResult> elites, int eCount, ParallelOptions parallelOptions)
+        {
             var next = new TElement[size];
-            for (int i = 0; i < size; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-                TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+            var elitesArray = elites as FitnessResult[] ?? elites.ToArray();
 
-                TElement child = Cross.Apply(p1, p2);
-                Mutation.Apply(child, MutationProbability);
-                next[i] = child;
+            if (EnableParallelBreeding)
+            {
+                Parallel.For(0, size, parallelOptions, i =>
+                {
+                    next[i] = CreateChild(elitesArray, eCount);
+                });
+            }
+            else
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    next[i] = CreateChild(elitesArray, eCount);
+                }
             }
 
-            if (Reinsert != null && elitesArray.Length > 0)
+            if(Reinsert != null)
             {
-                var survivors = Reinsert.GetSurvivors(elitesArray);
-                for (int i = 0; i < survivors.Length && i < next.Length; i++)
-                    next[i] = survivors[i];
+                TElement[] toReinsert = Reinsert.GetSurvivors(elitesArray);
+                for(int i = 0;i < toReinsert.Length;i++ )
+                    next[i] = toReinsert[i];
             }
 
-            return next.ToList();
+            return next;
+        }
+
+        private TElement CreateChild(FitnessResult[] elitesArray, int eCount)
+        {
+            TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+            TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+
+            TElement child = Cross.Apply(p1, p2);
+            Mutation.Apply(child, MutationProbability);
+            return child;
         }
     }
 }

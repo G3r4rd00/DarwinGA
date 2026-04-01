@@ -24,10 +24,7 @@ namespace DarwinGA.Selections
 
         public IEnumerable<FitnessResult> Select(IEnumerable<FitnessResult> population)
         {
-            int n = population.Count();
-            if (n == 0) return population;
-
-            var t = Math.Clamp((int)Math.Round(selectionSize * n), 1, n);
+            var t = (int)(selectionSize * population.Count());
             return population
                 .OrderByDescending(x => x.FitnessValue)
                 .Take(t);

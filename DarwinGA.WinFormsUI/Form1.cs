@@ -50,24 +50,10 @@ public partial class Form1 : Form
     private SimpleLineChart _fitnessChart = null!;
     private SimpleLineChart _populationChart = null!;
     private ListBox _logList = null!;
-    private ToolTip _toolTip = null!;
 
     private CancellationTokenSource? _cts;
     private GeneticAlgorithm<BinaryEvolutional>? _runningGa;
     private int _hotCapacity;
-
-    private static readonly IReadOnlyDictionary<string, string> ProblemDescriptions = new Dictionary<string, string>
-    {
-        ["OneMax"] = "Maximizes the number of 1 bits in the chromosome.",
-        ["DeceptiveTrap"] = "Deceptive block problem: appears to improve but gets trapped in local optima before reaching the global optimum.",
-        ["RoyalRoad"] = "Block-based function: grants full fitness only when entire blocks are all 1s.",
-        ["NKLandscape"] = "Rugged fitness landscape with gene epistasis (N-K model), containing many local optima.",
-        ["LeadingOnes"] = "Maximizes the number of consecutive ones from the start of the chromosome.",
-        ["TargetPattern"] = "Finds a chromosome that matches a predefined target bit pattern.",
-        ["Knapsack"] = "Selects items to maximize value without exceeding knapsack capacity.",
-        ["Partition"] = "Splits a set of numbers into two subsets with sums as balanced as possible.",
-        ["MaxCut"] = "Partitions graph nodes into two sets maximizing the number of crossing edges."
-    };
 
     public Form1()
     {
@@ -78,7 +64,7 @@ public partial class Form1 : Form
 
     private void BuildUi()
     {
-        Text = "DarwinGA - Genetic Algorithm Lab";
+        Text = "DarwinGA - Laboratorio de Algoritmos Genéticos";
         Width = 1350;
         Height = 850;
 
@@ -101,42 +87,41 @@ public partial class Form1 : Form
         };
 
         _problemCombo = CreateCombo(130);
-        _toolTip = new ToolTip();
         _selectionCombo = CreateCombo(140);
         _crossCombo = CreateCombo(140);
         _mutationCombo = CreateCombo(160);
         _populationNum = CreateNum(30, 2000, 150, 0);
         _generationsNum = CreateNum(1, 5000, 200, 0);
-        _geneCountNum = CreateNum(8, 2048, 512, 0);
+        _geneCountNum = CreateNum(8, 1024, 64, 0);
         _capacityNum = CreateNum(1, 500, 60, 0);
-        _mutationProbNum = CreateNum(0, 1, 0.06M, 2);
+        _mutationProbNum = CreateNum(0, 1, 0.15M, 2);
         _diversityPenaltyNum = CreateNum(0, 5, 0.6M, 2);
-        _selectionFractionNum = CreateNum(0.05M, 1, 0.35M, 2);
-        _tournamentKNum = CreateNum(2, 100, 3, 0);
+        _selectionFractionNum = CreateNum(0.05M, 1, 0.5M, 2);
+        _tournamentKNum = CreateNum(2, 100, 6, 0);
 
-        _enableDiversityCheck = new CheckBox { Text = "Enable diversity", Checked = true, AutoSize = true };
-        _enableParallelEvalCheck = new CheckBox { Text = "Parallel evaluation", Checked = true, AutoSize = true };
-        _enableParallelBreedCheck = new CheckBox { Text = "Parallel breeding", Checked = true, AutoSize = true };
-        _runButton = new Button { Text = "Start", Width = 120, Height = 30 };
-        _stopButton = new Button { Text = "Stop", Width = 120, Height = 30, Enabled = false };
+        _enableDiversityCheck = new CheckBox { Text = "Activar diversidad", Checked = true, AutoSize = true };
+        _enableParallelEvalCheck = new CheckBox { Text = "Evaluación paralela", Checked = true, AutoSize = true };
+        _enableParallelBreedCheck = new CheckBox { Text = "Cruce paralelo", Checked = true, AutoSize = true };
+        _runButton = new Button { Text = "Iniciar", Width = 120, Height = 30 };
+        _stopButton = new Button { Text = "Detener", Width = 120, Height = 30, Enabled = false };
 
         _runButton.Click += RunButton_Click;
         _stopButton.Click += StopButton_Click;
 
         optionsPanel.Controls.AddRange(
         [
-            CreateLabeled("Problem", _problemCombo),
-            CreateLabeled("Selection", _selectionCombo),
-            CreateLabeled("Selection fraction", _selectionFractionNum),
-            CreateLabeled("Tournament K", _tournamentKNum),
+            CreateLabeled("Problema", _problemCombo),
+            CreateLabeled("Selección", _selectionCombo),
+            CreateLabeled("Fracción selección", _selectionFractionNum),
+            CreateLabeled("Torneo K", _tournamentKNum),
             CreateLabeled("Crossover", _crossCombo),
-            CreateLabeled("Mutation", _mutationCombo),
-            CreateLabeled("Mutation prob.", _mutationProbNum),
-            CreateLabeled("Population", _populationNum),
-            CreateLabeled("Generations", _generationsNum),
-            CreateLabeled("Genes (binary)", _geneCountNum),
-            CreateLabeled("Capacity (Knapsack)", _capacityNum),
-            CreateLabeled("Diversity factor", _diversityPenaltyNum),
+            CreateLabeled("Mutación", _mutationCombo),
+            CreateLabeled("Prob. mutación", _mutationProbNum),
+            CreateLabeled("Población", _populationNum),
+            CreateLabeled("Generaciones", _generationsNum),
+            CreateLabeled("Genes (binarios)", _geneCountNum),
+            CreateLabeled("Capacidad (Knapsack)", _capacityNum),
+            CreateLabeled("Factor diversidad", _diversityPenaltyNum),
             _enableDiversityCheck,
             _enableParallelEvalCheck,
             _enableParallelBreedCheck,
@@ -153,8 +138,8 @@ public partial class Form1 : Form
         chartsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
         chartsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
 
-        _fitnessChart = CreateChart("Fitness evolution", ["Best", "Avg", "Min", "Max", "Diversity"]);
-        _populationChart = CreateChart("Population indicators", ["BestOnes(%)", "StdDev"]);
+        _fitnessChart = CreateChart("Evolución fitness", ["Best", "Avg", "Min", "Max", "Diversity"]);
+        _populationChart = CreateChart("Indicadores de población", ["BestOnes(%)", "StdDev"]);
         chartsPanel.Controls.Add(_fitnessChart, 0, 0);
         chartsPanel.Controls.Add(_populationChart, 1, 0);
 
@@ -169,10 +154,9 @@ public partial class Form1 : Form
         _problemCombo.SelectedIndexChanged += (_, _) =>
         {
             var problem = _problemCombo.SelectedItem?.ToString() ?? "OneMax";
-            bool usesGeneCount = problem is "OneMax" or "DeceptiveTrap" or "RoyalRoad" or "NKLandscape" or "LeadingOnes" or "TargetPattern";
+            bool usesGeneCount = problem is "OneMax" or "LeadingOnes" or "TargetPattern";
             _geneCountNum.Enabled = usesGeneCount;
             _capacityNum.Enabled = problem == "Knapsack";
-            UpdateProblemTooltip(problem);
         };
 
         _selectionCombo.SelectedIndexChanged += (_, _) => ApplyHotReloadParameters();
@@ -191,9 +175,8 @@ public partial class Form1 : Form
 
     private void PopulateOptions()
     {
-        _problemCombo.Items.AddRange(["DeceptiveTrap", "RoyalRoad", "NKLandscape", "OneMax", "LeadingOnes", "TargetPattern", "Knapsack", "Partition", "MaxCut"]);
+        _problemCombo.Items.AddRange(["OneMax", "LeadingOnes", "TargetPattern", "Knapsack", "Partition", "MaxCut"]);
         _problemCombo.SelectedIndex = 0;
-        UpdateProblemTooltip("DeceptiveTrap");
 
         _selectionCombo.Items.AddRange(["Tournament", "RouletteWheel", "Rank", "Truncation", "SUS", "Elite"]);
         _selectionCombo.SelectedIndex = 0;
@@ -221,11 +204,11 @@ public partial class Form1 : Form
         try
         {
             await Task.Run(() => Execute(settings, _cts.Token));
-            _logList.Items.Add("Completed.");
+            _logList.Items.Add("Finalizado.");
         }
         catch (OperationCanceledException)
         {
-            _logList.Items.Add("Execution canceled by user.");
+            _logList.Items.Add("Ejecución cancelada por el usuario.");
         }
         catch (Exception ex)
         {
@@ -249,9 +232,6 @@ public partial class Form1 : Form
     {
         int chromosomeSize = s.Problem switch
         {
-            "DeceptiveTrap" => s.GeneCount,
-            "RoyalRoad" => s.GeneCount,
-            "NKLandscape" => s.GeneCount,
             "OneMax" => s.GeneCount,
             "LeadingOnes" => s.GeneCount,
             "TargetPattern" => s.GeneCount,
@@ -272,9 +252,6 @@ public partial class Form1 : Form
 
         Func<BinaryEvolutional, double> fitness = s.Problem switch
         {
-            "DeceptiveTrap" => DeceptiveTrapFitness,
-            "RoyalRoad" => RoyalRoadFitness,
-            "NKLandscape" => NKLandscapeFitness,
             "OneMax" => OneMaxFitness,
             "LeadingOnes" => LeadingOnesFitness,
             "TargetPattern" => TargetPatternFitness,
@@ -338,7 +315,7 @@ public partial class Form1 : Form
             ? new SimilarityPenaltyStrategy<BinaryEvolutional>((double)_diversityPenaltyNum.Value)
             : null;
 
-        _logList.Items.Add("[HotReload] Runtime parameters applied.");
+        _logList.Items.Add("[HotReload] Parámetros aplicados en ejecución.");
         if (_logList.Items.Count > 600)
             _logList.Items.RemoveAt(0);
         _logList.TopIndex = _logList.Items.Count - 1;
@@ -364,9 +341,6 @@ public partial class Form1 : Form
             "Knapsack" => GetKnapsackInfo(result.BestElement, Volatile.Read(ref _hotCapacity)),
             "Partition" => GetPartitionInfo(result.BestElement),
             "MaxCut" => GetMaxCutInfo(result.BestElement),
-            "DeceptiveTrap" => $"TrapScore={DeceptiveTrapFitness(result.BestElement):F2}",
-            "RoyalRoad" => $"RoyalRoad={RoyalRoadFitness(result.BestElement):F2}",
-            "NKLandscape" => $"NKScore={NKLandscapeFitness(result.BestElement):F2}",
             "LeadingOnes" => $"LeadingOnes={LeadingOnesFitness(result.BestElement):F0}/{result.BestElement.Size}",
             "TargetPattern" => $"Matches={TargetPatternFitness(result.BestElement):F0}/{result.BestElement.Size}",
             _ => $"Ones={CountOnes(result.BestElement)}/{result.BestElement.Size}"
@@ -390,85 +364,6 @@ public partial class Form1 : Form
     }
 
     private static double OneMaxFitness(BinaryEvolutional e) => CountOnes(e);
-
-    private static double DeceptiveTrapFitness(BinaryEvolutional e)
-    {
-        const int blockSize = 5;
-        double fitness = 0;
-
-        for (int start = 0; start < e.Size; start += blockSize)
-        {
-            int len = Math.Min(blockSize, e.Size - start);
-            int ones = 0;
-            for (int i = 0; i < len; i++)
-            {
-                if (e.GetGen(start + i))
-                    ones++;
-            }
-
-            fitness += ones == len ? len : (len - 1 - ones);
-        }
-
-        return fitness;
-    }
-
-    private static double RoyalRoadFitness(BinaryEvolutional e)
-    {
-        const int blockSize = 8;
-        double fitness = 0;
-
-        for (int start = 0; start < e.Size; start += blockSize)
-        {
-            int len = Math.Min(blockSize, e.Size - start);
-            bool fullOnes = true;
-            for (int i = 0; i < len; i++)
-            {
-                if (!e.GetGen(start + i))
-                {
-                    fullOnes = false;
-                    break;
-                }
-            }
-
-            if (fullOnes)
-                fitness += len;
-        }
-
-        return fitness;
-    }
-
-    private static double NKLandscapeFitness(BinaryEvolutional e)
-    {
-        const int k = 4;
-        int n = e.Size;
-        if (n == 0)
-            return 0;
-
-        double sum = 0;
-        for (int i = 0; i < n; i++)
-        {
-            int pattern = 0;
-            for (int j = 0; j <= k; j++)
-            {
-                int idx = (i + j) % n;
-                if (e.GetGen(idx))
-                    pattern |= 1 << j;
-            }
-
-            sum += DeterministicContribution(i, pattern);
-        }
-
-        return sum / n;
-    }
-
-    private static double DeterministicContribution(int geneIndex, int pattern)
-    {
-        uint x = (uint)(geneIndex * 73856093) ^ (uint)(pattern * 19349663) ^ 83492791u;
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        return (x % 10000) / 10000.0;
-    }
 
     private static double LeadingOnesFitness(BinaryEvolutional e)
     {
@@ -658,7 +553,7 @@ public partial class Form1 : Form
             return;
 
         if (InvokeRequired)
-            Invoke(uiAction);
+            BeginInvoke(uiAction);
         else
             uiAction();
     }
@@ -693,14 +588,6 @@ public partial class Form1 : Form
         TournamentK: (int)_tournamentKNum.Value,
         ParallelEval: _enableParallelEvalCheck.Checked,
         ParallelBreed: _enableParallelBreedCheck.Checked);
-
-    private void UpdateProblemTooltip(string problem)
-    {
-        if (!ProblemDescriptions.TryGetValue(problem, out var description))
-            description = "Undocumented problem.";
-
-        _toolTip.SetToolTip(_problemCombo, description);
-    }
 
     private static Panel CreateLabeled(string label, Control control)
     {

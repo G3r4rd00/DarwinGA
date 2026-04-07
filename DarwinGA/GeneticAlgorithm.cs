@@ -10,6 +10,12 @@ namespace DarwinGA
     {
         public double MutationProbability { get; set; } = 0.01f;
 
+        public double CrossoverProbability { get; set; } = 1.0;
+
+        public int? RandomSeed { get; set; }
+
+        public Func<TElement, TElement>? CloneElement { get; set; }
+
         public required Func<TElement> NewItem { get; set; }
         public required Func<TElement, double> Fitness { get; set; }
         public required Action<GenerationResult<TElement>> OnNewGeneration { get; set; }
@@ -39,6 +45,31 @@ namespace DarwinGA
         public IDiversityMetric<TElement>? DiversityMetric { get; set; }
 
         public IDiversityStrategy<TElement>? DiversityStrategy { get; set; }
+
+        public bool EnableAdaptiveRates { get; set; } = false;
+
+        public int StagnationThreshold { get; set; } = 10;
+
+        public double ImprovementEpsilon { get; set; } = 1e-12;
+
+        public double AdaptiveMutationStep { get; set; } = 0.01;
+
+        public double AdaptiveCrossoverStep { get; set; } = 0.02;
+
+        public double AdaptiveMutationMin { get; set; } = 0.001;
+
+        public double AdaptiveMutationMax { get; set; } = 0.5;
+
+        public double AdaptiveCrossoverMin { get; set; } = 0.2;
+
+        public double AdaptiveCrossoverMax { get; set; } = 1.0;
+
+        public GeneticAlgorithmCheckpoint<TElement>? LastCheckpoint { get; private set; }
+
+        private double _baseMutationProbability;
+        private double _baseCrossoverProbability;
+        private double _bestFitnessSoFar;
+        private int _stagnationGenerations;
 
         private readonly record struct FitnessStats(
             int EvaluatedCount,
@@ -73,20 +104,88 @@ namespace DarwinGA
 
         public void Run(int populationSize, CancellationToken cancellationToken)
         {
-            if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
-            {
-                Selection = new AgeBasedSelection(Selection, AgePenaltyFactor);
-            }
+            EnsureSelectionConfiguration();
+            ConfigureRandomSeed();
+
+            InitializeEvolutionState(
+                MutationProbability,
+                CrossoverProbability,
+                MutationProbability,
+                CrossoverProbability,
+                double.NegativeInfinity,
+                0);
 
             List<TElement> population = new List<TElement>(populationSize);
             for (int i = 0; i < populationSize; i++)
                 population.Add(NewItem());
 
-            int g = 0;
+            LastCheckpoint = BuildCheckpoint(population, 0);
+            RunCore(population, populationSize, 0, cancellationToken);
+        }
+
+        public void Run(GeneticAlgorithmCheckpoint<TElement> checkpoint) => Run(checkpoint, CancellationToken.None);
+
+        public void Run(GeneticAlgorithmCheckpoint<TElement> checkpoint, CancellationToken cancellationToken)
+        {
+            if (checkpoint is null)
+                throw new ArgumentNullException(nameof(checkpoint));
+
+            if (checkpoint.Population.Count == 0)
+                throw new ArgumentException("Checkpoint population cannot be empty.", nameof(checkpoint));
+
+            EnsureSelectionConfiguration();
+            ConfigureRandomSeed();
+
+            MutationProbability = checkpoint.MutationProbability;
+            CrossoverProbability = checkpoint.CrossoverProbability;
+
+            InitializeEvolutionState(
+                checkpoint.BaseMutationProbability,
+                checkpoint.BaseCrossoverProbability,
+                checkpoint.MutationProbability,
+                checkpoint.CrossoverProbability,
+                checkpoint.BestFitnessSoFar,
+                checkpoint.StagnationGenerations);
+
+            var population = ClonePopulation(checkpoint.Population);
+            LastCheckpoint = BuildCheckpoint(population, checkpoint.NextGeneration);
+            RunCore(population, population.Count, checkpoint.NextGeneration, cancellationToken);
+        }
+
+        public GeneticAlgorithmCheckpoint<TElement> CreateCheckpoint()
+        {
+            if (LastCheckpoint is null)
+                throw new InvalidOperationException("No checkpoint available. Run the algorithm first.");
+
+            return new GeneticAlgorithmCheckpoint<TElement>
+            {
+                Population = ClonePopulation(LastCheckpoint.Population),
+                NextGeneration = LastCheckpoint.NextGeneration,
+                MutationProbability = LastCheckpoint.MutationProbability,
+                CrossoverProbability = LastCheckpoint.CrossoverProbability,
+                BaseMutationProbability = LastCheckpoint.BaseMutationProbability,
+                BaseCrossoverProbability = LastCheckpoint.BaseCrossoverProbability,
+                StagnationGenerations = LastCheckpoint.StagnationGenerations,
+                BestFitnessSoFar = LastCheckpoint.BestFitnessSoFar
+            };
+        }
+
+        private void RunCore(List<TElement> initialPopulation, int populationSize, int initialGeneration, CancellationToken cancellationToken)
+        {
+            var population = initialPopulation;
+            int generation = initialGeneration;
+
             while (population != null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                population = Evolve(population, populationSize, g++, cancellationToken);
+
+                var nextPopulation = Evolve(population, populationSize, generation, cancellationToken);
+                if (nextPopulation is null)
+                    return;
+
+                generation++;
+                LastCheckpoint = BuildCheckpoint(nextPopulation, generation);
+                population = nextPopulation;
             }
         }
 
@@ -104,7 +203,8 @@ namespace DarwinGA
             var stats = CalculateFitnessStats(results);
             double diversityIndex = CalculateDiversityIndexIfEnabled(results, elites);
             var best = elites.First();
-            GenerationResult<TElement> genResult = CreateGenerationResult(best, generation, stats, diversityIndex);
+            UpdateAdaptiveState(best.FitnessValue);
+            GenerationResult<TElement> genResult = CreateGenerationResult(best, generation, stats, diversityIndex, MutationProbability, CrossoverProbability, _stagnationGenerations);
 
             OnNewGeneration?.Invoke(genResult);
             if (Termination.ShouldTerminate(genResult))
@@ -244,7 +344,10 @@ namespace DarwinGA
             FitnessResult best,
             int generation,
             FitnessStats stats,
-            double diversityIndex)
+            double diversityIndex,
+            double mutationProbability,
+            double crossoverProbability,
+            int stagnationGenerations)
         {
             return new GenerationResult<TElement>
             {
@@ -256,7 +359,10 @@ namespace DarwinGA
                 MinFitness = stats.Min,
                 MaxFitness = stats.Max,
                 FitnessStdDev = stats.StdDev,
-                DiversityIndex = diversityIndex
+                DiversityIndex = diversityIndex,
+                MutationProbability = mutationProbability,
+                CrossoverProbability = crossoverProbability,
+                StagnationGenerations = stagnationGenerations
             };
         }
 
@@ -295,9 +401,101 @@ namespace DarwinGA
             TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
             TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
 
-            TElement child = Cross.Apply(p1, p2);
+            TElement child = MyRandom.NextDouble() <= CrossoverProbability
+                ? Cross.Apply(p1, p2)
+                : CreateFallbackChildWithoutCrossover(p1);
+
             Mutation.Apply(child, MutationProbability);
             return child;
+        }
+
+        private TElement CreateFallbackChildWithoutCrossover(TElement parent)
+        {
+            if (CloneElement is not null)
+                return CloneElement(parent);
+
+            return Cross.Apply(parent, parent);
+        }
+
+        private void EnsureSelectionConfiguration()
+        {
+            if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
+            {
+                Selection = new AgeBasedSelection(Selection, AgePenaltyFactor);
+            }
+        }
+
+        private void ConfigureRandomSeed()
+        {
+            if (RandomSeed.HasValue)
+                MyRandom.SetSeed(RandomSeed.Value);
+        }
+
+        private void InitializeEvolutionState(
+            double baseMutationProbability,
+            double baseCrossoverProbability,
+            double currentMutationProbability,
+            double currentCrossoverProbability,
+            double bestFitnessSoFar,
+            int stagnationGenerations)
+        {
+            _baseMutationProbability = baseMutationProbability;
+            _baseCrossoverProbability = baseCrossoverProbability;
+            MutationProbability = currentMutationProbability;
+            CrossoverProbability = currentCrossoverProbability;
+            _bestFitnessSoFar = bestFitnessSoFar;
+            _stagnationGenerations = stagnationGenerations;
+        }
+
+        private void UpdateAdaptiveState(double bestFitness)
+        {
+            bool improved = bestFitness > _bestFitnessSoFar + ImprovementEpsilon;
+            if (improved)
+            {
+                _bestFitnessSoFar = bestFitness;
+                _stagnationGenerations = 0;
+
+                if (!EnableAdaptiveRates)
+                    return;
+
+                MutationProbability = Math.Max(AdaptiveMutationMin, MutationProbability - AdaptiveMutationStep);
+                CrossoverProbability = Math.Min(AdaptiveCrossoverMax, CrossoverProbability + AdaptiveCrossoverStep);
+                return;
+            }
+
+            _stagnationGenerations++;
+            if (!EnableAdaptiveRates || _stagnationGenerations < StagnationThreshold)
+                return;
+
+            MutationProbability = Math.Min(AdaptiveMutationMax, MutationProbability + AdaptiveMutationStep);
+            CrossoverProbability = Math.Max(AdaptiveCrossoverMin, CrossoverProbability - AdaptiveCrossoverStep);
+        }
+
+        private GeneticAlgorithmCheckpoint<TElement> BuildCheckpoint(IReadOnlyList<TElement> population, int nextGeneration)
+        {
+            return new GeneticAlgorithmCheckpoint<TElement>
+            {
+                Population = ClonePopulation(population),
+                NextGeneration = nextGeneration,
+                MutationProbability = MutationProbability,
+                CrossoverProbability = CrossoverProbability,
+                BaseMutationProbability = _baseMutationProbability,
+                BaseCrossoverProbability = _baseCrossoverProbability,
+                StagnationGenerations = _stagnationGenerations,
+                BestFitnessSoFar = _bestFitnessSoFar
+            };
+        }
+
+        private List<TElement> ClonePopulation(IReadOnlyList<TElement> population)
+        {
+            var clone = new List<TElement>(population.Count);
+            for (int i = 0; i < population.Count; i++)
+            {
+                var item = population[i];
+                clone.Add(CloneElement is null ? item : CloneElement(item));
+            }
+
+            return clone;
         }
     }
 }

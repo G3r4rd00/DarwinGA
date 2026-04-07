@@ -47,6 +47,9 @@ The engine evolves a population of candidate solutions across generations until 
 | 🏆 **7 selection** strategies | ✅ | 2–3 typical |
 | 🌍 Built-in **diversity preservation** | ✅ | ❌ |
 | 🧓 **Age-based selection** to prevent stagnation | ✅ | ❌ |
+| 🎲 **Deterministic seed** for reproducible runs | ✅ | Partial |
+| 💾 **Checkpoint / Resume** support | ✅ | Rare |
+| 📈 **Adaptive mutation/crossover with stagnation tracking** | ✅ | Rare |
 | 🧠 **Neuroevolution** support (ActivationNetwork) | ✅ | ❌ |
 | 📊 **Generation statistics** (avg/min/max/stddev + diversity index) | ✅ | ❌ |
 | 🏝️ **Island Model** (multi-population + migration) | ✅ | ❌ |
@@ -300,6 +303,62 @@ ParallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 8 }
 
 ---
 
+### 🎲 Reproducibility, Adaptive Rates, and Checkpoints
+
+Use a fixed seed for deterministic runs (recommended with parallel modes disabled):
+
+```csharp
+RandomSeed = 12345,
+```
+
+Enable adaptive mutation/crossover when fitness stagnates:
+
+```csharp
+EnableAdaptiveRates = true,
+
+// Starts increasing mutation / decreasing crossover after N stagnant generations
+StagnationThreshold = 10,
+
+AdaptiveMutationStep = 0.01,
+AdaptiveCrossoverStep = 0.02,
+
+AdaptiveMutationMin = 0.001,
+AdaptiveMutationMax = 0.5,
+AdaptiveCrossoverMin = 0.2,
+AdaptiveCrossoverMax = 1.0,
+```
+
+During `OnNewGeneration`, each `GenerationResult<T>` now includes:
+
+- `MutationProbability`
+- `CrossoverProbability`
+- `StagnationGenerations`
+
+Checkpoint and resume a run:
+
+```csharp
+var ga = new GeneticAlgorithm<MyChromosome>
+{
+    // ... required setup ...
+};
+
+ga.Run(populationSize: 100);
+
+// Save in-memory snapshot (population + generation + adaptive state)
+var checkpoint = ga.CreateCheckpoint();
+
+// Later, continue from the same checkpoint
+ga.Run(checkpoint);
+```
+
+For deep-copy checkpoints, provide a clone function:
+
+```csharp
+CloneElement = x => /* return a deep copy of x */
+```
+
+---
+
 ## 🧠 Neuroevolution Support
 
 DarwinGA includes built-in support for evolving neural networks via `ActivationNetworkEvolutional`:
@@ -428,6 +487,9 @@ ga.Run(populationSize: 120);
 | `OnNewGeneration` | `Action<GenerationResult<T>>` | Callback invoked after each generation. **Required.** |
 | `Reinsert` | `IReinsert<T>?` | Reinsertion strategy. Survivors are carried unchanged into the next generation. Optional. |
 | `MutationProbability` | `double` | Probability of mutating each child. Default: `0.01`. |
+| `CrossoverProbability` | `double` | Probability of applying crossover when creating a child. Default: `1.0`. |
+| `RandomSeed` | `int?` | Fixed seed for reproducible runs. |
+| `CloneElement` | `Func<T, T>?` | Optional clone function for deep-copy checkpoints and non-crossover fallback. |
 | `EnableParallelEvaluation` | `bool` | Evaluate fitness in parallel. Default: `false`. |
 | `EnableParallelBreeding` | `bool` | Breed children in parallel. Default: `false`. |
 | `ParallelOptions` | `ParallelOptions` | Configure parallelism (e.g. max threads). |
@@ -436,7 +498,23 @@ ga.Run(populationSize: 120);
 | `DiversityStrategy` | `IDiversityStrategy<T>?` | Strategy to adjust fitness based on diversity. |
 | `EnableAgeBasedSelection` | `bool` | Penalize long-lived individuals. Default: `false`. |
 | `AgePenaltyFactor` | `double` | Fitness penalty per generation of age. Default: `0.05`. |
-| `Run(populationSize, cancellationToken)` | method | Overload to support cancellation. |
+| `EnableAdaptiveRates` | `bool` | Enable adaptive mutation/crossover. Default: `false`. |
+| `StagnationThreshold` | `int` | Stagnant generations before adaptive pressure is applied. Default: `10`. |
+| `AdaptiveMutationStep` | `double` | Step used to increase/decrease mutation probability. |
+| `AdaptiveCrossoverStep` | `double` | Step used to increase/decrease crossover probability. |
+| `AdaptiveMutationMin/Max` | `double` | Mutation bounds while adapting. |
+| `AdaptiveCrossoverMin/Max` | `double` | Crossover bounds while adapting. |
+| `LastCheckpoint` | `GeneticAlgorithmCheckpoint<T>?` | Last available in-memory checkpoint snapshot. |
+
+### Main Methods
+
+| Method | Description |
+|---|---|
+| `Run(int populationSize)` | Starts a new evolution run. |
+| `Run(int populationSize, CancellationToken)` | Starts a new evolution run with cancellation support. |
+| `Run(GeneticAlgorithmCheckpoint<T> checkpoint)` | Resumes from a checkpoint. |
+| `Run(GeneticAlgorithmCheckpoint<T> checkpoint, CancellationToken)` | Resumes from a checkpoint with cancellation support. |
+| `CreateCheckpoint()` | Returns a snapshot of the latest resumable state. |
 
 ### Key Interfaces
 

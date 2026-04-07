@@ -23,6 +23,12 @@ namespace DarwinGA
         public double FitnessStdDev { get; set; }
 
         public double DiversityIndex { get; set; }
+
+        public double MutationProbability { get; set; }
+
+        public double CrossoverProbability { get; set; }
+
+        public int StagnationGenerations { get; set; }
     }
 
     public class GenerationResult<T> : GenerationResultBase  where T : IGAEvolutional<T>

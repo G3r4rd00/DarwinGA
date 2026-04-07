@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="DarwinGA.Example/DarwinGA.Example.csproj" />
   <Project Path="DarwinGA.Tests/DarwinGA.Tests.csproj" />
+  <Project Path="DarwinGA.WinFormsUI/DarwinGA.WinFormsUI.csproj" />
   <Project Path="DarwinGA/DarwinGA.csproj" />
 </Solution>

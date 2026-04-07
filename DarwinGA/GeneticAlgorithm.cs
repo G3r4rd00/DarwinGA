@@ -126,8 +126,8 @@ namespace DarwinGA
 
         private FitnessResult[] EvaluatePopulation(List<TElement> population, ParallelOptions parallelOptions)
         {
-            // FIX: El c�lculo paralelo anterior era inseguro (race condition con Append en IEnumerable).
-            // Se reemplaza por creaci�n de array y asignaci�n indexada segura.
+            // FIX: The previous parallel computation was unsafe (race condition with Append on IEnumerable).
+            // Replaced with array allocation and safe indexed assignment.
             FitnessResult[] results = new FitnessResult[population.Count];
             if (EnableParallelEvaluation)
             {

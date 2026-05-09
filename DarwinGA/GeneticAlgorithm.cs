@@ -394,16 +394,8 @@ namespace DarwinGA
             }
 
             // Aplicar crossover poblacional
-            List<TElement> offspring;
-            if (MyRandom.NextDouble() <= CrossoverProbability)
-            {
-                offspring = PopulationCrosser!.CrossPopulation(parents);
-            }
-            else
-            {
-                // Si no se hace crossover, simplemente usar los padres seleccionados
-                offspring = new List<TElement>(parents);
-            }
+            List<TElement> offspring = PopulationCrosser!.CrossPopulation(parents);
+            
 
             // Asegurar que tenemos el tamaño correcto
             while (offspring.Count < size)

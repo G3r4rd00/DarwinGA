@@ -7,12 +7,13 @@ Console.WriteLine("Choose an example:");
 Console.WriteLine("  1) 0/1 Knapsack + Diversity + Generation statistics");
 Console.WriteLine("  2) 0/1 Knapsack + CancellationToken");
 Console.WriteLine("  3) 0/1 Knapsack + Island Model (ring migration)");
-Console.WriteLine("  4) Neural network evolution (XOR)\n");
+Console.WriteLine("  4) Neural network evolution (XOR)");
+Console.WriteLine("  5) OneMax with AI Population Crosser\n");
 
 var option = args.Length > 0 ? args[0].Trim() : null;
 if (string.IsNullOrWhiteSpace(option))
 {
-    Console.Write("Option (1-4): ");
+    Console.Write("Option (1-5): ");
     option = Console.ReadLine()?.Trim();
 }
 
@@ -29,6 +30,9 @@ switch (option)
         break;
     case "4":
         Example04_NeuralNetworkXor.Run();
+        break;
+    case "5":
+        Example05_AICrosser.Run();
         break;
     default:
         Console.WriteLine("Invalid option.");

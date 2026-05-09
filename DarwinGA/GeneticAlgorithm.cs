@@ -24,7 +24,9 @@ namespace DarwinGA
 
         public required IMutation<TElement> Mutation { get; set; } 
 
-        public required ICross<TElement> Cross { get; set; }
+        public ICross<TElement>? Cross { get; set; }
+
+        public IPopulationCrosser<TElement>? PopulationCrosser { get; set; }
 
         public required ITermination Termination { get; set; }
 
@@ -105,6 +107,7 @@ namespace DarwinGA
         public void Run(int populationSize, CancellationToken cancellationToken)
         {
             EnsureSelectionConfiguration();
+            EnsureCrossoverConfiguration();
             ConfigureRandomSeed();
 
             InitializeEvolutionState(
@@ -134,6 +137,7 @@ namespace DarwinGA
                 throw new ArgumentException("Checkpoint population cannot be empty.", nameof(checkpoint));
 
             EnsureSelectionConfiguration();
+            EnsureCrossoverConfiguration();
             ConfigureRandomSeed();
 
             MutationProbability = checkpoint.MutationProbability;
@@ -368,8 +372,81 @@ namespace DarwinGA
 
         private TElement[] BreedNextPopulation(int size, IEnumerable<FitnessResult> elites, int eCount, ParallelOptions parallelOptions)
         {
-            var next = new TElement[size];
             var elitesArray = elites as FitnessResult[] ?? elites.ToArray();
+
+            // Si tenemos PopulationCrosser, usarlo
+            if (PopulationCrosser != null)
+            {
+                return BreedWithPopulationCrosser(size, elitesArray, eCount, parallelOptions);
+            }
+
+            // Si no, usar el método clásico con ICross
+            return BreedWithClassicCrossover(size, elitesArray, eCount, parallelOptions);
+        }
+
+        private TElement[] BreedWithPopulationCrosser(int size, FitnessResult[] elitesArray, int eCount, ParallelOptions parallelOptions)
+        {
+            // Seleccionar padres
+            var parents = new List<TElement>(size);
+            for (int i = 0; i < size; i++)
+            {
+                parents.Add((TElement)elitesArray[MyRandom.NextInt(eCount)].Element);
+            }
+
+            // Aplicar crossover poblacional
+            List<TElement> offspring;
+            if (MyRandom.NextDouble() <= CrossoverProbability)
+            {
+                offspring = PopulationCrosser!.CrossPopulation(parents);
+            }
+            else
+            {
+                // Si no se hace crossover, simplemente usar los padres seleccionados
+                offspring = new List<TElement>(parents);
+            }
+
+            // Asegurar que tenemos el tamaño correcto
+            while (offspring.Count < size)
+            {
+                offspring.Add((TElement)elitesArray[MyRandom.NextInt(eCount)].Element);
+            }
+            if (offspring.Count > size)
+            {
+                offspring = offspring.Take(size).ToList();
+            }
+
+            // Aplicar mutación
+            if (EnableParallelBreeding)
+            {
+                Parallel.For(0, offspring.Count, parallelOptions, i =>
+                {
+                    Mutation.Apply(offspring[i], MutationProbability);
+                });
+            }
+            else
+            {
+                for (int i = 0; i < offspring.Count; i++)
+                {
+                    Mutation.Apply(offspring[i], MutationProbability);
+                }
+            }
+
+            var next = offspring.ToArray();
+
+            // Aplicar reinserción si está configurada
+            if (Reinsert != null)
+            {
+                TElement[] toReinsert = Reinsert.GetSurvivors(elitesArray);
+                for (int i = 0; i < toReinsert.Length; i++)
+                    next[i] = toReinsert[i];
+            }
+
+            return next;
+        }
+
+        private TElement[] BreedWithClassicCrossover(int size, FitnessResult[] elitesArray, int eCount, ParallelOptions parallelOptions)
+        {
+            var next = new TElement[size];
 
             if (EnableParallelBreeding)
             {
@@ -402,7 +479,7 @@ namespace DarwinGA
             TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
 
             TElement child = MyRandom.NextDouble() <= CrossoverProbability
-                ? Cross.Apply(p1, p2)
+                ? Cross!.Apply(p1, p2)
                 : CreateFallbackChildWithoutCrossover(p1);
 
             Mutation.Apply(child, MutationProbability);
@@ -414,7 +491,10 @@ namespace DarwinGA
             if (CloneElement is not null)
                 return CloneElement(parent);
 
-            return Cross.Apply(parent, parent);
+            if (Cross is not null)
+                return Cross.Apply(parent, parent);
+
+            throw new InvalidOperationException("Cannot create child without crossover: neither CloneElement nor Cross is configured.");
         }
 
         private void EnsureSelectionConfiguration()
@@ -422,6 +502,14 @@ namespace DarwinGA
             if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
             {
                 Selection = new AgeBasedSelection(Selection, AgePenaltyFactor);
+            }
+        }
+
+        private void EnsureCrossoverConfiguration()
+        {
+            if (PopulationCrosser == null && Cross == null)
+            {
+                throw new InvalidOperationException("Either Cross or PopulationCrosser must be configured.");
             }
         }
 

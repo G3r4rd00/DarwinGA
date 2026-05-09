@@ -1,14 +1,16 @@
+using System.Collections.Generic;
+
 namespace DarwinGA
 {
-    public class GeneticAlgorithmCheckpoint<TElement>
+    public class GeneticAlgorithmCheckpoint<TElement> where TElement : Interfaces.IGAEvolutional<TElement>
     {
-        public required IReadOnlyList<TElement> Population { get; init; }
-        public required int NextGeneration { get; init; }
-        public required double MutationProbability { get; init; }
-        public required double CrossoverProbability { get; init; }
-        public required double BaseMutationProbability { get; init; }
-        public required double BaseCrossoverProbability { get; init; }
-        public required int StagnationGenerations { get; init; }
-        public required double BestFitnessSoFar { get; init; }
+        public required List<TElement> Population { get; set; }
+        public required int NextGeneration { get; set; }
+        public required double MutationProbability { get; set; }
+        public required double CrossoverProbability { get; set; }
+        public required double BaseMutationProbability { get; set; }
+        public required double BaseCrossoverProbability { get; set; }
+        public required int StagnationGenerations { get; set; }
+        public required double BestFitnessSoFar { get; set; }
     }
 }

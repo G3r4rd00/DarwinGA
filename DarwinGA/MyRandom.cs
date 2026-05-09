@@ -8,10 +8,13 @@ namespace DarwinGA
 {
     public static class MyRandom
     {
-        [ThreadStatic]
-        private static Random? _random;
+        private static Random _rand = Random.Shared;
 
-        private static Random _rand => _random ??= Random.Shared;
+        public static void SetSeed(int seed)
+        {
+            _rand = new Random(seed);
+        }
+
         public static int NextInt(int minValue, int maxValue)
         {
             return _rand.Next(minValue, maxValue);
@@ -35,11 +38,6 @@ namespace DarwinGA
         public static int NextInt(int maxValue)
         {
             return _rand.Next(maxValue);
-        }
-
-        public static void SetSeed(int seed)
-        {
-            _random = new Random(seed);
         }
 
 

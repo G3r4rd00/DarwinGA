@@ -34,6 +34,7 @@ public partial class Form1 : Form
     private ComboBox _selectionCombo = null!;
     private ComboBox _crossCombo = null!;
     private ComboBox _mutationCombo = null!;
+    private ComboBox _modelCombo = null!;
     private NumericUpDown _populationNum = null!;
     private NumericUpDown _generationsNum = null!;
     private NumericUpDown _geneCountNum = null!;
@@ -90,6 +91,7 @@ public partial class Form1 : Form
         _selectionCombo = CreateCombo(140);
         _crossCombo = CreateCombo(140);
         _mutationCombo = CreateCombo(160);
+        _modelCombo = CreateCombo(180);
         _populationNum = CreateNum(30, 2000, 150, 0);
         _generationsNum = CreateNum(1, 5000, 200, 0);
         _geneCountNum = CreateNum(8, 1024, 64, 0);
@@ -110,6 +112,7 @@ public partial class Form1 : Form
 
         optionsPanel.Controls.AddRange(
         [
+            CreateLabeled("Modelo ChatGPT", _modelCombo),
             CreateLabeled("Problema", _problemCombo),
             CreateLabeled("Selección", _selectionCombo),
             CreateLabeled("Fracción selección", _selectionFractionNum),
@@ -188,6 +191,10 @@ public partial class Form1 : Form
             "Random", "KFlip", "BlockFlip", "MultiBlockFlip", "RunFlip", "SwapPairs", "BitMask", "ShiftRotation", "NonUniform", "GeometricBlock", "Scramble"
         ]);
         _mutationCombo.SelectedIndex = 0;
+
+        // Modelos válidos de ChatGPT
+        _modelCombo.Items.AddRange(DarwinGA.AI.ChatGPTProvider.AllowedModels.OrderBy(x => x).ToArray());
+        _modelCombo.SelectedIndex = 0;
     }
 
     private async void RunButton_Click(object? sender, EventArgs e)

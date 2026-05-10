@@ -215,7 +215,7 @@ namespace DarwinGA
                 return null;
 
             cancellationToken.ThrowIfCancellationRequested();
-            return BreedNextPopulation(size, elites, eCount, parallelOptions).ToList();
+            return BreedNextPopulation(size, elites,  parallelOptions).ToList();
         }
 
         private ParallelOptions CreateParallelOptions(CancellationToken cancellationToken)
@@ -370,29 +370,26 @@ namespace DarwinGA
             };
         }
 
-        private TElement[] BreedNextPopulation(int size, IEnumerable<FitnessResult> elites, int eCount, ParallelOptions parallelOptions)
+        private TElement[] BreedNextPopulation(int size, IEnumerable<FitnessResult> elites, ParallelOptions parallelOptions)
         {
             var elitesArray = elites as FitnessResult[] ?? elites.ToArray();
 
             // Si tenemos PopulationCrosser, usarlo
             if (PopulationCrosser != null)
             {
-                return BreedWithPopulationCrosser(size, elitesArray, eCount, parallelOptions);
+                return BreedWithPopulationCrosser(size, elitesArray,  parallelOptions);
             }
 
             // Si no, usar el método clásico con ICross
-            return BreedWithClassicCrossover(size, elitesArray, eCount, parallelOptions);
+            return BreedWithClassicCrossover(size, elitesArray,  parallelOptions);
         }
 
-        private TElement[] BreedWithPopulationCrosser(int size, FitnessResult[] elitesArray, int eCount, ParallelOptions parallelOptions)
+        private TElement[] BreedWithPopulationCrosser(int size, FitnessResult[] elitesArray, ParallelOptions parallelOptions)
         {
-            // Seleccionar padres
-            var parents = new List<TElement>(size);
-            for (int i = 0; i < size; i++)
-            {
-                parents.Add((TElement)elitesArray[MyRandom.NextInt(eCount)].Element);
-            }
-
+            int eCount = elitesArray.Length;
+            
+            var parents = elitesArray.Select(fr => (TElement)fr.Element).ToList();
+            
             // Aplicar crossover poblacional
             List<TElement> offspring = PopulationCrosser!.CrossPopulation(parents);
             
@@ -436,8 +433,9 @@ namespace DarwinGA
             return next;
         }
 
-        private TElement[] BreedWithClassicCrossover(int size, FitnessResult[] elitesArray, int eCount, ParallelOptions parallelOptions)
+        private TElement[] BreedWithClassicCrossover(int size, FitnessResult[] elitesArray, ParallelOptions parallelOptions)
         {
+            int eCount = elitesArray.Length;
             var next = new TElement[size];
 
             if (EnableParallelBreeding)

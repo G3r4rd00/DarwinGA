@@ -14,6 +14,32 @@ namespace DarwinGA.AI
     /// </summary>
     public class ChatGPTProvider : IAIProvider
     {
+        // Lista de modelos válidos según https://developers.openai.com/api/docs/models/all (junio 2024)
+        public static readonly HashSet<string> AllowedModels = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-0125",
+            "gpt-3.5-turbo-1106",
+            "gpt-3.5-turbo-0613",
+            "gpt-3.5-turbo-16k",
+            "gpt-4",
+            "gpt-4-0613",
+            "gpt-4-32k",
+            "gpt-4-32k-0613",
+            "gpt-4-turbo",
+            "gpt-4-0125-preview",
+            "gpt-4-1106-preview",
+            "gpt-4o"
+        };
+
+        // Modelos que NO admiten temperature (según docs OpenAI)
+        private static readonly HashSet<string> NoTemperatureModels = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "gpt-4o",
+            "gpt-4-turbo",
+            "gpt-4-0125-preview",
+            "gpt-4-1106-preview"
+        };
         private readonly string _apiKey;
         private readonly string _model;
         private readonly HttpClient _httpClient;
@@ -29,6 +55,10 @@ namespace DarwinGA.AI
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException("API key cannot be null or empty.", nameof(apiKey));
+
+
+            if (!AllowedModels.Contains(model))
+                throw new ArgumentException($"Modelo '{model}' no permitido. Usa uno de: {string.Join(", ", AllowedModels)}", nameof(model));
 
             _apiKey = apiKey;
             _model = model;
@@ -77,16 +107,29 @@ Learn from the evolutionary progress across generations to make better crossover
             });
 
             // Build request with full conversation history
-            var requestBody = new
+            object requestBody;
+            var messages = _conversationHistory.Select(m => new
             {
-                model = _model,
-                messages = _conversationHistory.Select(m => new
+                role = m.Role,
+                content = m.Content
+            }).ToArray();
+            if (NoTemperatureModels.Contains(_model))
+            {
+                requestBody = new
                 {
-                    role = m.Role,
-                    content = m.Content
-                }).ToArray(),
-                temperature = 0.7
-            };
+                    model = _model,
+                    messages
+                };
+            }
+            else
+            {
+                requestBody = new
+                {
+                    model = _model,
+                    messages,
+                    temperature = 0.7
+                };
+            }
 
             var json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");

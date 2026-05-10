@@ -42,12 +42,26 @@ Choose an example:
 ...
 ```
 
-## Available Models
 
-You can use different ChatGPT models:
-- `gpt-3.5-turbo` (faster, cheaper)
-- `gpt-4` (more capable, slower, more expensive)
-- `gpt-4-turbo` (good balance)
+## Available Models (June 2024)
+
+You can use the following ChatGPT models (see https://developers.openai.com/api/docs/models/all):
+
+- `gpt-3.5-turbo`
+- `gpt-3.5-turbo-0125`
+- `gpt-3.5-turbo-1106`
+- `gpt-3.5-turbo-0613`
+- `gpt-3.5-turbo-16k`
+- `gpt-4`
+- `gpt-4-0613`
+- `gpt-4-32k`
+- `gpt-4-32k-0613`
+- `gpt-4-turbo`
+- `gpt-4-0125-preview`
+- `gpt-4-1106-preview`
+- `gpt-4o`
+
+**Note:** Some models (like `gpt-4o`, `gpt-4-turbo`, `gpt-4-0125-preview`, `gpt-4-1106-preview`) do NOT support the `temperature` parameter. The system will automatically omit it for those models.
 
 ## Cost Considerations
 

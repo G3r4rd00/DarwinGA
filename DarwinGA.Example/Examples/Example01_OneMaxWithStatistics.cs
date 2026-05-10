@@ -19,7 +19,7 @@ namespace DarwinGA.Example
 
             var items = ExampleShared.CreateDefaultKnapsackItems();
             int capacity = 60;
-            int populationSize = 150;
+            int populationSize = 50;
 
             var ga = ExampleShared.CreateDefaultKnapsackGA(items, capacity);
             ga.Termination = new GenerationNumTermination(200);

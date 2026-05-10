@@ -37,6 +37,11 @@ namespace DarwinGA.Example
                 new KnapsackItem(2, 10),
                 new KnapsackItem(16, 90),
                 new KnapsackItem(1, 6),
+                new KnapsackItem(17, 95),
+                new KnapsackItem(11, 58),
+                new KnapsackItem(13, 68),
+                new KnapsackItem(9, 47),
+                new KnapsackItem(6, 32)
             ];
         }
 

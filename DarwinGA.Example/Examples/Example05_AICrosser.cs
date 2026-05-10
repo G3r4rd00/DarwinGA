@@ -4,6 +4,7 @@ using DarwinGA.Evolutionals.BinaryEvolutional.Crossers;
 using DarwinGA.Evolutionals.BinaryEvolutional.Mutations;
 using DarwinGA.Selections;
 using DarwinGA.Terminations;
+using System.Text;
 using System.Text.Json;
 
 namespace DarwinGA.Example
@@ -11,8 +12,8 @@ namespace DarwinGA.Example
     internal static class Example05_AICrosser
     {
         // Example 5
-        // OneMax problem using AI-based Population Crosser with ChatGPT
-        // OneMax: maximize the number of 1s in a binary string
+        // 0/1 Knapsack problem using AI-based Population Crosser with ChatGPT
+        // 0/1 Knapsack: choose items to maximize value without exceeding capacity
         // Demonstrates:
         // - IPopulationCrosser interface (AICrosser)
         // - Population-wide crossover instead of pairwise
@@ -20,7 +21,7 @@ namespace DarwinGA.Example
         // - Loading API keys from configuration file
         public static void Run()
         {
-            Console.WriteLine("[Example 5] OneMax with AI Population Crosser (ChatGPT)\n");
+            Console.WriteLine("[Example 5] 0/1 Knapsack with AI Population Crosser (ChatGPT)\n");
 
             // Load configuration
             var config = LoadConfiguration();
@@ -32,12 +33,79 @@ namespace DarwinGA.Example
                 return;
             }
 
-            // Create AI provider
+            // Show model selection menu
+            string selectedModel = SelectChatGPTModel();
+            Console.WriteLine();
+
+            const int chromosomeSize = 20; // Smaller size for AI processing
+            const int populationSize = 50;
+            const int capacity = 60;
+
+            // Create knapsack items
+            var items = ExampleShared.CreateDefaultKnapsackItems();
+
+            // Build items information for AI context
+            var itemsInfo = new StringBuilder();
+            itemsInfo.AppendLine("Item# | Weight | Value | Value/Weight Ratio");
+            itemsInfo.AppendLine("------|--------|-------|-------------------");
+            for (int i = 0; i < items.Length; i++)
+            {
+                double ratio = items[i].Value / items[i].Weight;
+                itemsInfo.AppendLine($"  {i,2}  |   {items[i].Weight,2}   | {items[i].Value,5:F1} |      {ratio,5:F2}");
+            }
+
+            // Build comprehensive system message with static context (sent only once)
+            var systemMessage = $@"You are a genetic algorithm assistant specialized in evolutionary computation for the 0/1 Knapsack Problem.
+
+PROBLEM CONTEXT:
+- Type: 0/1 Knapsack Problem
+- Chromosome length: {items.Length} bits (one per item)
+- Knapsack capacity: {capacity} weight units
+- Each bit position corresponds to an item: 1=included, 0=excluded
+
+FITNESS EVALUATION:
+- Fitness = Total value of selected items
+- Heavy penalty applied when total weight exceeds {capacity}
+- Goal: Maximize value while staying within weight limit
+
+ITEMS CATALOG:
+{itemsInfo}
+
+KEY INSIGHTS:
+- Items with highest value/weight ratios (see table above) are most efficient
+- Bit positions correspond directly to item numbers in the table
+- When doing crossover, consider preserving high-ratio items from fit parents
+- Be cautious with heavy items (high weight) - they can easily break capacity constraint
+
+CROSSOVER STRATEGY RECOMMENDATIONS:
+1. High-fitness parents likely have optimal item combinations
+2. Preserve genetic segments with high-value, low-weight items
+3. Use intelligent crossover (e.g., respect item efficiency patterns)
+4. Balance exploitation (copy good gene patterns) with exploration (try new combinations)
+5. Avoid creating offspring that select too many heavy items
+6. Consider the cumulative weight when combining parent genes
+
+CHROMOSOME INTERPRETATION EXAMPLE:
+If bit 0 is '1' → Item #0 (Weight={items[0].Weight}, Value={items[0].Value}) is included
+If bit 0 is '0' → Item #0 is excluded
+
+YOUR TASK:
+You receive populations of binary chromosomes in JSON format and perform crossover operations to create offspring.
+Apply intelligent crossover strategies that:
+1. Preserve good genetic material from fit parents
+2. Explore new combinations that might improve fitness
+3. Maintain population diversity
+4. Learn from previous generations to improve crossover quality
+
+Always respond with ONLY a valid JSON array of binary strings. Do not include explanations or additional text.
+Learn from the evolutionary progress across generations to make better crossover decisions.";
+
+            // Create AI provider with custom system message (static context)
             IAIProvider aiProvider;
             try
             {
-                aiProvider = new ChatGPTProvider(config.ApiKey, config.Model);
-                Console.WriteLine($"✓ ChatGPT provider initialized (model: {config.Model})\n");
+                aiProvider = new ChatGPTProvider(config.ApiKey, selectedModel);
+                Console.WriteLine($"✓ ChatGPT provider initialized (model: {selectedModel})\n");
             }
             catch (Exception ex)
             {
@@ -45,34 +113,21 @@ namespace DarwinGA.Example
                 return;
             }
 
-            const int chromosomeSize = 20; // Smaller size for AI processing
-            const int populationSize = 10; // Smaller population for AI demo
-
-            // Define fitness function
+            // Define fitness function for Knapsack
             Func<BinaryEvolutional, double> fitnessFunction = chromosome =>
             {
-                // OneMax: count the number of 1s
-                int count = 0;
-                for (int i = 0; i < chromosome.Size; i++)
-                {
-                    if (chromosome.GetGen(i))
-                        count++;
-                }
-                return count;
+                return ExampleShared.KnapsackFitnessWithPenalty(chromosome, items, capacity);
             };
 
-            // Create AI crosser with fitness context
-            var aiCrosser = new AICrosser(aiProvider)
-            {
-                FitnessFunction = fitnessFunction
-            };
+            // Create AI crosser WITHOUT additional context (it's already in the system message)
+            var aiCrosser = new AICrosser(aiProvider, populationSize, systemMessage);
 
             var ga = new GeneticAlgorithm<BinaryEvolutional>
             {
                 NewItem = () =>
                 {
-                    var chr = new BinaryEvolutional(chromosomeSize);
-                    for (int i = 0; i < chromosomeSize; i++)
+                    var chr = new BinaryEvolutional(items.Length);
+                    for (int i = 0; i < items.Length; i++)
                         chr.SetGen(i, MyRandom.NextBool());
                     return chr;
                 },
@@ -97,19 +152,12 @@ namespace DarwinGA.Example
 
                 OnNewGeneration = result =>
                 {
-                    var best = result.BestElement;
-                    int ones = 0;
-                    for (int i = 0; i < best.Size; i++)
-                    {
-                        if (best.GetGen(i))
-                            ones++;
-                    }
-
+                    var (w, v, selected) = ExampleShared.EvaluateKnapsack(result.BestElement, items);
                     Console.WriteLine(
                         $"Gen: {result.GenerationNum,-4} | " +
-                        $"Best: {result.BestFitness,5:F1}/{chromosomeSize} | " +
-                        $"Avg: {result.AverageFitness,6:F2} | " +
-                        $"Ones: {ones,2}/{chromosomeSize}"
+                        $"Best: {result.BestFitness,8:F2} | " +
+                        $"Avg: {result.AverageFitness,8:F2} | " +
+                        $"W: {w,3}/{capacity} | V: {v,6:F1} | #:{selected,2}"
                     );
                 }
             };
@@ -133,13 +181,18 @@ namespace DarwinGA.Example
 
             if (finalBest != null)
             {
+                var (w, v, selected) = ExampleShared.EvaluateKnapsack(finalBest, items);
                 Console.WriteLine("\n=== Final Best Solution ===");
-                Console.Write("Chromosome: ");
+                Console.Write("Items selected: ");
                 for (int i = 0; i < finalBest.Size; i++)
                 {
-                    Console.Write(finalBest.GetGen(i) ? "1" : "0");
+                    if (finalBest.GetGen(i))
+                        Console.Write($"{i} ");
                 }
-                Console.WriteLine($"\nFitness: {ga.Fitness(finalBest)}/{chromosomeSize}");
+                Console.WriteLine($"\nFitness: {ga.Fitness(finalBest):F2}");
+                Console.WriteLine($"Total Weight: {w}/{capacity}");
+                Console.WriteLine($"Total Value: {v:F1}");
+                Console.WriteLine($"Items count: {selected}");
             }
 
             // Show conversation statistics
@@ -149,9 +202,41 @@ namespace DarwinGA.Example
                 Console.WriteLine($"Total messages in history: {chatGpt.ConversationLength}");
                 Console.WriteLine("(The AI learned from each generation to improve crossover quality)");
             }
+        }
 
-            Console.WriteLine("\nPress any key to return to menu...");
-            Console.ReadKey();
+        private static string SelectChatGPTModel()
+        {
+            // Obtener modelos válidos y ordenarlos
+            var allowed = DarwinGA.AI.ChatGPTProvider.AllowedModels.OrderByDescending(m => m.StartsWith("gpt-4o"))
+                .ThenByDescending(m => m.StartsWith("gpt-4"))
+                .ThenByDescending(m => m.StartsWith("gpt-3.5"))
+                .ThenBy(m => m)
+                .ToList();
+
+            // Descripciones simples para los modelos más conocidos
+            string GetDesc(string model) => model switch
+            {
+                "gpt-4o" => "GPT-4o (más reciente, recomendado)",
+                "gpt-4-turbo" => "GPT-4 Turbo (rápido, eficiente)",
+                "gpt-4" => "GPT-4 (alta calidad)",
+                "gpt-3.5-turbo" => "GPT-3.5 Turbo (económico)",
+                _ => model
+            };
+
+            Console.WriteLine("Modelos ChatGPT disponibles:");
+            for (int i = 0; i < allowed.Count; i++)
+            {
+                Console.WriteLine($"  {i + 1}) {GetDesc(allowed[i])}");
+            }
+
+            Console.Write($"\nModelo (1-{allowed.Count}, por defecto=1): ");
+            var choice = Console.ReadLine()?.Trim();
+            int idx = 0;
+            if (!string.IsNullOrWhiteSpace(choice) && int.TryParse(choice, out int parsed) && parsed >= 1 && parsed <= allowed.Count)
+                idx = parsed - 1;
+
+            Console.WriteLine($"Seleccionado: {GetDesc(allowed[idx])}");
+            return allowed[idx];
         }
 
         private static AIConfiguration? LoadConfiguration()
@@ -170,12 +255,13 @@ namespace DarwinGA.Example
 
                 var aiSection = doc.RootElement.GetProperty("AI");
                 var chatGptSection = aiSection.GetProperty("ChatGPT");
-
-                return new AIConfiguration
+                var conf = new AIConfiguration
                 {
-                    ApiKey = chatGptSection.GetProperty("ApiKey").GetString() ?? string.Empty,
-                    Model = chatGptSection.GetProperty("Model").GetString() ?? "gpt-3.5-turbo"
+                    ApiKey = chatGptSection.GetProperty("ApiKey").GetString() ?? string.Empty
                 };
+                Console.WriteLine("✓ Configuration loaded successfully.\n");
+
+                return conf;
             }
             catch (Exception ex)
             {
@@ -187,7 +273,6 @@ namespace DarwinGA.Example
         private class AIConfiguration
         {
             public string ApiKey { get; set; } = string.Empty;
-            public string Model { get; set; } = string.Empty;
         }
     }
 }

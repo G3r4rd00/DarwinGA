@@ -24,7 +24,7 @@ namespace DarwinGA.Example
             var items = ExampleShared.CreateDefaultKnapsackItems();
             int capacity = 60;
             int islands = 4;
-            int populationPerIsland = 120;
+            int populationPerIsland = 50;
 
             var islandGa = new IslandModelGeneticAlgorithm<BinaryEvolutional>(islands)
             {

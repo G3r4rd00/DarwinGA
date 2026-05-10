@@ -20,20 +20,19 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
         private int _generationCount = 0;
         private double _lastBestFitness = 0;
         private double _lastAverageFitness = 0;
-
-        /// <summary>
-        /// Gets or sets the fitness function used to evaluate individuals.
-        /// When set, fitness information is included in the AI prompt for better context.
-        /// </summary>
-        public Func<BinaryEvolutional, double>? FitnessFunction { get; set; }
+        private string _additionalContext = "";
+        private int _populationSize = 0;
 
         /// <summary>
         /// Creates a new AI-based crossover operator.
         /// </summary>
         /// <param name="aiProvider">The AI provider to use for crossover operations.</param>
-        public AICrosser(IAIProvider aiProvider)
+        /// <param name="additionalContext">Additional context to provide to the AI for crossover operations.</param>
+        public AICrosser(IAIProvider aiProvider, int populationSize, string additionalContext = "")
         {
             _aiProvider = aiProvider ?? throw new ArgumentNullException(nameof(aiProvider));
+            _additionalContext = additionalContext; 
+            _populationSize = populationSize;
         }
 
         public List<BinaryEvolutional> CrossPopulation(List<BinaryEvolutional> parents)
@@ -43,18 +42,12 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
 
             _generationCount++;
 
-            // 1. Calcular fitness si está disponible
-            Dictionary<string, double>? fitnessMap = null;
-            if (FitnessFunction != null)
-            {
-                fitnessMap = CalculateFitness(parents);
-            }
-
+            
             // 2. Serializar la población a JSON
-            string serializedPopulation = SerializePopulation(parents, fitnessMap);
+            string serializedParents = SerializePopulation(parents);
 
             // 3. Crear el prompt para la IA con contexto evolutivo
-            string prompt = BuildPrompt(serializedPopulation, parents.Count, fitnessMap);
+            string prompt = BuildPrompt(serializedParents, _populationSize, _additionalContext);
 
             // 4. Enviar a la IA y recibir respuesta
             string aiResponse;
@@ -80,24 +73,7 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             return offspring;
         }
 
-        private Dictionary<string, double> CalculateFitness(List<BinaryEvolutional> population)
-        {
-            var fitnessMap = new Dictionary<string, double>();
-            var fitnessList = new List<double>();
-
-            foreach (var individual in population)
-            {
-                double fitness = FitnessFunction!(individual);
-                string key = GetChromosomeString(individual);
-                fitnessMap[key] = fitness;
-                fitnessList.Add(fitness);
-            }
-
-            _lastBestFitness = fitnessList.Max();
-            _lastAverageFitness = fitnessList.Average();
-
-            return fitnessMap;
-        }
+       
 
         private string GetChromosomeString(BinaryEvolutional individual)
         {
@@ -109,33 +85,25 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             return genes.ToString();
         }
 
-        private string BuildPrompt(string populationJson, int expectedSize, Dictionary<string, double>? fitnessMap)
+        private string BuildPrompt(string populationJson, int expectedSize, string additionalContext = "")
         {
             var promptBuilder = new StringBuilder();
 
             promptBuilder.AppendLine($"Generation {_generationCount}:");
+            promptBuilder.AppendLine($"Best fitness: {_lastBestFitness:F2} | Average fitness: {_lastAverageFitness:F2}");
+
             promptBuilder.AppendLine();
-
-            if (fitnessMap != null)
-            {
-                promptBuilder.AppendLine($"Current population statistics:");
-                promptBuilder.AppendLine($"- Best fitness: {_lastBestFitness:F2}");
-                promptBuilder.AppendLine($"- Average fitness: {_lastAverageFitness:F2}");
-                promptBuilder.AppendLine();
-                promptBuilder.AppendLine("Perform crossover to create offspring that:");
-                promptBuilder.AppendLine("1. Preserve genetic material from high-fitness parents");
-                promptBuilder.AppendLine("2. Explore new combinations that might improve fitness");
-                promptBuilder.AppendLine("3. Maintain diversity in the population");
-                promptBuilder.AppendLine();
-            }
-            else
-            {
-                promptBuilder.AppendLine("Perform genetic crossover operations to create diverse offspring.");
-                promptBuilder.AppendLine();
-            }
-
             promptBuilder.AppendLine($"Input population (with fitness scores):");
             promptBuilder.AppendLine(populationJson);
+
+            // Only include additional context if provided (for backwards compatibility)
+            if (!string.IsNullOrWhiteSpace(additionalContext))
+            {
+                promptBuilder.AppendLine();
+                promptBuilder.AppendLine("Additional context:");
+                promptBuilder.AppendLine(additionalContext);
+            }
+
             promptBuilder.AppendLine();
             promptBuilder.AppendLine($"Create exactly {expectedSize} offspring chromosomes.");
             promptBuilder.AppendLine("Return ONLY a JSON array of binary strings (0s and 1s), nothing else.");
@@ -157,33 +125,14 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             return response;
         }
 
-        private string SerializePopulation(List<BinaryEvolutional> population, Dictionary<string, double>? fitnessMap)
+        private string SerializePopulation(List<BinaryEvolutional> population)
         {
-            if (fitnessMap == null)
+            var populationData = new List<string>();
+            foreach (var individual in population)
             {
-                // Sin fitness, solo las cadenas binarias
-                var populationData = new List<string>();
-                foreach (var individual in population)
-                {
-                    populationData.Add(GetChromosomeString(individual));
-                }
-                return JsonSerializer.Serialize(populationData, new JsonSerializerOptions { WriteIndented = true });
+                populationData.Add(GetChromosomeString(individual));
             }
-            else
-            {
-                // Con fitness, incluir información adicional
-                var populationData = new List<object>();
-                foreach (var individual in population)
-                {
-                    string chromosome = GetChromosomeString(individual);
-                    populationData.Add(new
-                    {
-                        chromosome = chromosome,
-                        fitness = fitnessMap[chromosome]
-                    });
-                }
-                return JsonSerializer.Serialize(populationData, new JsonSerializerOptions { WriteIndented = true });
-            }
+            return JsonSerializer.Serialize(populationData, new JsonSerializerOptions { WriteIndented = true });
         }
 
         private List<BinaryEvolutional> DeserializePopulation(string json, int size)

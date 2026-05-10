@@ -54,57 +54,42 @@ namespace DarwinGA.Example
                 itemsInfo.AppendLine($"  {i,2}  |   {items[i].Weight,2}   | {items[i].Value,5:F1} |      {ratio,5:F2}");
             }
 
-            // Build comprehensive system message with static context (sent only once)
-            var systemMessage = $@"You are a genetic algorithm assistant specialized in evolutionary computation for the 0/1 Knapsack Problem.
+            // System message similar in structure to Example 6
+            var systemMessage = $@"You are a genetic algorithm assistant specialized in the 0/1 Knapsack Problem.
 
 PROBLEM CONTEXT:
-- Type: 0/1 Knapsack Problem
+- Items: {items.Length}
 - Chromosome length: {items.Length} bits (one per item)
 - Knapsack capacity: {capacity} weight units
 - Each bit position corresponds to an item: 1=included, 0=excluded
 
-FITNESS EVALUATION:
-- Fitness = Total value of selected items
-- Heavy penalty applied when total weight exceeds {capacity}
-- Goal: Maximize value while staying within weight limit
-
 ITEMS CATALOG:
 {itemsInfo}
 
-KEY INSIGHTS:
-- Items with highest value/weight ratios (see table above) are most efficient
-- Bit positions correspond directly to item numbers in the table
-- When doing crossover, consider preserving high-ratio items from fit parents
-- Be cautious with heavy items (high weight) - they can easily break capacity constraint
+GOAL:
+- Maximize the total value of selected items.
+- Do not exceed the knapsack capacity ({capacity}).
+
+FITNESS EVALUATION:
+- Fitness = Total value of selected items
+- Heavy penalty applied when total weight exceeds capacity
 
 CROSSOVER STRATEGY RECOMMENDATIONS:
-1. High-fitness parents likely have optimal item combinations
-2. Preserve genetic segments with high-value, low-weight items
-3. Use intelligent crossover (e.g., respect item efficiency patterns)
-4. Balance exploitation (copy good gene patterns) with exploration (try new combinations)
-5. Avoid creating offspring that select too many heavy items
-6. Consider the cumulative weight when combining parent genes
-
-CHROMOSOME INTERPRETATION EXAMPLE:
-If bit 0 is '1' → Item #0 (Weight={items[0].Weight}, Value={items[0].Value}) is included
-If bit 0 is '0' → Item #0 is excluded
+1. Preserve high-value, low-weight items from fit parents.
+2. Avoid creating offspring that exceed the capacity.
+3. Maintain population diversity to explore new combinations.
+4. Learn from previous generations to improve crossover quality.
 
 YOUR TASK:
 You receive populations of binary chromosomes in JSON format and perform crossover operations to create offspring.
-Apply intelligent crossover strategies that:
-1. Preserve good genetic material from fit parents
-2. Explore new combinations that might improve fitness
-3. Maintain population diversity
-4. Learn from previous generations to improve crossover quality
-
-Always respond with ONLY a valid JSON array of binary strings. Do not include explanations or additional text.
-Learn from the evolutionary progress across generations to make better crossover decisions.";
+Return ONLY a JSON array of binary strings with exactly {items.Length} bits each. Do not include explanations or extra text.
+Learn from the evolutionary progress across generations to improve crossover decisions.";
 
             // Create AI provider with custom system message (static context)
             IAIProvider aiProvider;
             try
             {
-                aiProvider = new ChatGPTProvider(config.ApiKey, selectedModel);
+                aiProvider = new ChatGPTProvider(config.ApiKey, selectedModel, systemMessage);
                 Console.WriteLine($"✓ ChatGPT provider initialized (model: {selectedModel})\n");
             }
             catch (Exception ex)
@@ -120,7 +105,7 @@ Learn from the evolutionary progress across generations to make better crossover
             };
 
             // Create AI crosser WITHOUT additional context (it's already in the system message)
-            var aiCrosser = new AICrosser(aiProvider, populationSize, systemMessage);
+            var aiCrosser = new AICrosser(aiProvider, populationSize);
 
             var ga = new GeneticAlgorithm<BinaryEvolutional>
             {

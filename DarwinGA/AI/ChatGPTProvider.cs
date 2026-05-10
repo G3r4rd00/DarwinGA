@@ -51,7 +51,8 @@ namespace DarwinGA.AI
         /// </summary>
         /// <param name="apiKey">Your OpenAI API key.</param>
         /// <param name="model">The model to use (default: gpt-3.5-turbo).</param>
-        public ChatGPTProvider(string apiKey, string model = "gpt-3.5-turbo")
+        /// <param name="systemMessage">Optional system message to set the initial context for the conversation.</param>
+        public ChatGPTProvider(string apiKey, string model = "gpt-3.5-turbo", string systemMessage = "")
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException("API key cannot be null or empty.", nameof(apiKey));
@@ -64,13 +65,8 @@ namespace DarwinGA.AI
             _model = model;
             _httpClient = new HttpClient();
             _conversationHistory = new List<ChatMessage>();
-
-            // Initialize with system message
-            _conversationHistory.Add(new ChatMessage
-            {
-                Role = "system",
-                Content = @"You are a genetic algorithm assistant specialized in evolutionary computation. 
-You receive populations of binary chromosomes in JSON format and perform crossover operations to create offspring.
+            string defaultSystemMessage = @"You are a genetic algorithm assistant specialized in evolutionary computation. 
+You receive parents of binary chromosomes in JSON format and perform crossover operations to create offspring.
 Your goal is to apply intelligent crossover strategies that:
 1. Preserve good genetic material from fit parents
 2. Explore new combinations that might improve fitness
@@ -78,7 +74,13 @@ Your goal is to apply intelligent crossover strategies that:
 4. Learn from previous generations to improve crossover quality
 
 Always respond with ONLY a valid JSON array of binary strings. Do not include explanations or additional text.
-Learn from the evolutionary progress across generations to make better crossover decisions."
+Learn from the evolutionary progress across generations to make better crossover decisions.";
+
+            // Initialize with system message
+            _conversationHistory.Add(new ChatMessage
+            {
+                Role = "system",
+                Content = string.IsNullOrEmpty(systemMessage) ? defaultSystemMessage : systemMessage
             });
         }
 

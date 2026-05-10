@@ -20,18 +20,15 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
         private int _generationCount = 0;
         private double _lastBestFitness = 0;
         private double _lastAverageFitness = 0;
-        private string _additionalContext = "";
         private int _populationSize = 0;
 
         /// <summary>
         /// Creates a new AI-based crossover operator.
         /// </summary>
         /// <param name="aiProvider">The AI provider to use for crossover operations.</param>
-        /// <param name="additionalContext">Additional context to provide to the AI for crossover operations.</param>
-        public AICrosser(IAIProvider aiProvider, int populationSize, string additionalContext = "")
+        public AICrosser(IAIProvider aiProvider, int populationSize)
         {
             _aiProvider = aiProvider ?? throw new ArgumentNullException(nameof(aiProvider));
-            _additionalContext = additionalContext; 
             _populationSize = populationSize;
         }
 
@@ -47,7 +44,7 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             string serializedParents = SerializePopulation(parents);
 
             // 3. Crear el prompt para la IA con contexto evolutivo
-            string prompt = BuildPrompt(serializedParents, _populationSize, _additionalContext);
+            string prompt = BuildPrompt(serializedParents, _populationSize);
 
             // 4. Enviar a la IA y recibir respuesta
             string aiResponse;
@@ -95,14 +92,6 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             promptBuilder.AppendLine();
             promptBuilder.AppendLine($"Input population (with fitness scores):");
             promptBuilder.AppendLine(populationJson);
-
-            // Only include additional context if provided (for backwards compatibility)
-            if (!string.IsNullOrWhiteSpace(additionalContext))
-            {
-                promptBuilder.AppendLine();
-                promptBuilder.AppendLine("Additional context:");
-                promptBuilder.AppendLine(additionalContext);
-            }
 
             promptBuilder.AppendLine();
             promptBuilder.AppendLine($"Create exactly {expectedSize} offspring chromosomes.");

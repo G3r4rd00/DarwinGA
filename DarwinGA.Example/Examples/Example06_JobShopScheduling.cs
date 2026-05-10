@@ -127,7 +127,7 @@ Learn from the evolutionary progress across generations to improve crossover dec
             IAIProvider aiProvider;
             try
             {
-                aiProvider = new ChatGPTProvider(config.ApiKey, selectedModel);
+                aiProvider = new ChatGPTProvider(config.ApiKey, selectedModel, systemMessage);
                 Console.WriteLine($"✓ ChatGPT provider initialized (model: {selectedModel})\n");
             }
             catch (Exception ex)
@@ -136,7 +136,7 @@ Learn from the evolutionary progress across generations to improve crossover dec
                 return;
             }
 
-            var aiCrosser = new AICrosser(aiProvider, populationSize, systemMessage);
+            var aiCrosser = new AICrosser(aiProvider, populationSize);
 
             var ga = CreateBaseGA(instance, enableDiversity: false);
             ga.PopulationCrosser = aiCrosser;

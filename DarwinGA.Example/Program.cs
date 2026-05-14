@@ -1,5 +1,8 @@
+using DarwinGA.AI;
 using DarwinGA.Example;
+using Microsoft.Extensions.Configuration;
 
+// Add your logic to use openAiService here.
 while (true)
 {
     Console.Clear();
@@ -57,7 +60,8 @@ static void RunKnapsackMenu()
             Example03_IslandModel.Run();
             break;
         case "3":
-            Example05_AICrosser.Run();
+            var aiProvider = GetAIProvider();
+            Example05_AICrosser.Run(aiProvider);
             break;
         default:
             Console.WriteLine("Invalid option.");
@@ -88,10 +92,63 @@ static void RunJobShopMenu()
             Example06_JobShopScheduling.RunWithIslandModel();
             break;
         case "3":
-            Example06_JobShopScheduling.RunWithAICrosser();
+            var aiProvider = GetAIProvider();
+            Example06_JobShopScheduling.RunWithAICrosser(aiProvider);
             break;
         default:
             Console.WriteLine("Invalid option.");
             break;
     }
+}
+
+static IAIProvider GetAIProvider()
+{
+    const string defaultSettingsFile = "appsettings.json";
+    const string debugSettingsFile = "appsettings.debug.json";
+    const string legacyDebugSettingsFile = "appsettings.Debug.json";
+
+    var basePath = Directory.GetCurrentDirectory();
+    var settingsFile = File.Exists(Path.Combine(basePath, debugSettingsFile))
+        ? debugSettingsFile
+        : File.Exists(Path.Combine(basePath, legacyDebugSettingsFile))
+            ? legacyDebugSettingsFile
+            : defaultSettingsFile;
+
+    var configuration = new ConfigurationBuilder()
+        .SetBasePath(basePath)
+        .AddJsonFile(settingsFile, optional: false, reloadOnChange: true)
+        .Build();
+
+    string apiKey = configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+
+    if (string.IsNullOrEmpty(apiKey))
+    {
+        throw new InvalidOperationException("OpenAI API key not found in appsettings.json or environment variables.");
+    }
+
+    // Load available models if the provider supports it
+    Console.WriteLine("Choose an model:");
+    Console.WriteLine(" 1) gpt-5.5");
+    Console.WriteLine(" 2) gpt-5.5-pro");
+    Console.WriteLine(" 3) gpt-5.4");
+    Console.WriteLine(" 4) gpt-4o");
+    Console.WriteLine(" 5) gpt-4");
+    Console.WriteLine(" 6) gpt-3.5-turbo");
+    Console.Write("Option (1-6): ");
+    var option = Console.ReadLine()?.Trim();
+
+    string model = option switch
+    {
+        "1" => "gpt-5.5",
+        "2" => "gpt-5.5-pro",
+        "3" => "gpt-5.4",
+        "4" => "gpt-4o",
+        "5" => "gpt-4",
+        "6" => "gpt-3.5-turbo",
+        _ => "gpt-3.5-turbo"
+    };
+
+    var aiProvider = new ChatGPTProvider(apiKey,model);
+
+    return aiProvider;
 }

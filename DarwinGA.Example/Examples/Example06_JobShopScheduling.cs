@@ -75,21 +75,9 @@ namespace DarwinGA.Example
             Console.WriteLine("\nDone.");
         }
 
-        public static void RunWithAICrosser()
+        public static void RunWithAICrosser(IAIProvider aiProvider)
         {
             Console.WriteLine("[Example 6] Job Shop Scheduling + AI Population Crosser (ChatGPT)\n");
-
-            var config = LoadConfiguration();
-            if (config == null)
-            {
-                Console.WriteLine("ERROR: Could not load configuration.");
-                Console.WriteLine("Please ensure appsettings.json exists with your OpenAI API key.");
-                Console.WriteLine("See appsettings.Example.json for the expected format.");
-                return;
-            }
-
-            string selectedModel = SelectChatGPTModel();
-            Console.WriteLine();
 
             var instance = CreateSampleInstance();
             int chromosomeSize = instance.TotalOperations * BitsPerOperation;
@@ -124,18 +112,7 @@ You receive populations of binary chromosomes in JSON format and perform crossov
 Return ONLY a JSON array of binary strings with exactly {chromosomeSize} bits each. Do not include explanations or extra text.
 Learn from the evolutionary progress across generations to improve crossover decisions.";
 
-            IAIProvider aiProvider;
-            try
-            {
-                aiProvider = new ChatGPTProvider(config.ApiKey, selectedModel, systemMessage);
-                Console.WriteLine($"✓ ChatGPT provider initialized (model: {selectedModel})\n");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ERROR: Failed to initialize AI provider: {ex.Message}");
-                return;
-            }
-
+         
             var aiCrosser = new AICrosser(aiProvider, populationSize);
 
             var ga = CreateBaseGA(instance, enableDiversity: false);
@@ -175,11 +152,6 @@ Learn from the evolutionary progress across generations to improve crossover dec
                 Console.WriteLine($"Makespan: {makespan}");
             }
 
-            if (aiProvider is ChatGPTProvider chatGpt)
-            {
-                Console.WriteLine($"\n=== AI Conversation Statistics ===");
-                Console.WriteLine($"Total messages in history: {chatGpt.ConversationLength}");
-            }
         }
 
         private static GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(JobShopInstance instance, bool enableDiversity)
@@ -319,74 +291,5 @@ Learn from the evolutionary progress across generations to improve crossover dec
             return builder.ToString();
         }
 
-        private static string SelectChatGPTModel()
-        {
-            var allowed = DarwinGA.AI.ChatGPTProvider.AllowedModels
-                .OrderByDescending(m => m.StartsWith("gpt-4o"))
-                .ThenByDescending(m => m.StartsWith("gpt-4"))
-                .ThenByDescending(m => m.StartsWith("gpt-3.5"))
-                .ThenBy(m => m)
-                .ToList();
-
-            string GetDesc(string model) => model switch
-            {
-                "gpt-4o" => "GPT-4o (más reciente, recomendado)",
-                "gpt-4-turbo" => "GPT-4 Turbo (rápido, eficiente)",
-                "gpt-4" => "GPT-4 (alta calidad)",
-                "gpt-3.5-turbo" => "GPT-3.5 Turbo (económico)",
-                _ => model
-            };
-
-            Console.WriteLine("Modelos ChatGPT disponibles:");
-            for (int i = 0; i < allowed.Count; i++)
-            {
-                Console.WriteLine($"  {i + 1}) {GetDesc(allowed[i])}");
-            }
-
-            Console.Write($"\nModelo (1-{allowed.Count}, por defecto=1): ");
-            var choice = Console.ReadLine()?.Trim();
-            int idx = 0;
-            if (!string.IsNullOrWhiteSpace(choice) && int.TryParse(choice, out int parsed) && parsed >= 1 && parsed <= allowed.Count)
-                idx = parsed - 1;
-
-            Console.WriteLine($"Seleccionado: {GetDesc(allowed[idx])}");
-            return allowed[idx];
-        }
-
-        private static AIConfiguration? LoadConfiguration()
-        {
-            try
-            {
-                string configPath = "appsettings.json";
-                if (!File.Exists(configPath))
-                {
-                    Console.WriteLine($"Configuration file not found: {configPath}");
-                    return null;
-                }
-
-                string json = File.ReadAllText(configPath);
-                var doc = JsonDocument.Parse(json);
-
-                var aiSection = doc.RootElement.GetProperty("AI");
-                var chatGptSection = aiSection.GetProperty("ChatGPT");
-                var conf = new AIConfiguration
-                {
-                    ApiKey = chatGptSection.GetProperty("ApiKey").GetString() ?? string.Empty
-                };
-                Console.WriteLine("✓ Configuration loaded successfully.\n");
-
-                return conf;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading configuration: {ex.Message}");
-                return null;
-            }
-        }
-
-        private class AIConfiguration
-        {
-            public string ApiKey { get; set; } = string.Empty;
-        }
     }
 }

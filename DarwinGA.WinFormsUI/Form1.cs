@@ -193,8 +193,8 @@ public partial class Form1 : Form
         _mutationCombo.SelectedIndex = 0;
 
         // Modelos válidos de ChatGPT
-        _modelCombo.Items.AddRange(DarwinGA.AI.ChatGPTProvider.AllowedModels.OrderBy(x => x).ToArray());
-        _modelCombo.SelectedIndex = 0;
+        //_modelCombo.Items.AddRange(DarwinGA.AI.ChatGPTProvider.AllowedModels.OrderBy(x => x).ToArray());
+        //_modelCombo.SelectedIndex = 0;
     }
 
     private async void RunButton_Click(object? sender, EventArgs e)

@@ -16,7 +16,7 @@ Define your problem. Let evolution find the solution.
 - Email: `gerardotous@gmail.com`
 - LinkedIn: https://www.linkedin.com/in/gerardo-tous-vallespir-42491636/
 
-[Quick Start](#-quick-start) · [Features](#-features-at-a-glance) · [Operators](#-built-in-operators) · [Examples](#-full-example) · [API Reference](#-api-reference)
+[Quick Start](#-quick-start) · [Features](#-features-at-a-glance) · [Operators](#-built-in-operators) · [AI Crossover](#-ai-powered-crossover-openai--deepseek) · [Examples](#-full-example) · [API Reference](#-api-reference)
 
 
 
@@ -51,6 +51,7 @@ The engine evolves a population of candidate solutions across generations until 
 | 💾 **Checkpoint / Resume** support | ✅ | Rare |
 | 📈 **Adaptive mutation/crossover with stagnation tracking** | ✅ | Rare |
 | 🧠 **Neuroevolution** support (ActivationNetwork) | ✅ | ❌ |
+| 🤖 **AI-powered population crossover** with OpenAI and DeepSeek | ✅ | ❌ |
 | 📊 **Generation statistics** (avg/min/max/stddev + diversity index) | ✅ | ❌ |
 | 🏝️ **Island Model** (multi-population + migration) | ✅ | ❌ |
 | ♻️ **Reinsertion** strategies (carry elites to next generation) | ✅ | ❌ |
@@ -395,6 +396,94 @@ Evolve neural network topologies and weights without backpropagation — ideal f
 
 ---
 
+## 🤖 AI-Powered Crossover (OpenAI + DeepSeek)
+
+DarwinGA can use an LLM as a population-level crossover operator through `AICrosser`. Instead of crossing two parents at a time, the AI receives selected parents and returns a new set of binary offspring.
+
+Supported providers:
+
+| Provider | Class | API key setting | Environment variable | Default model |
+|---|---|---|---|---|
+| OpenAI / ChatGPT | `ChatGPTProvider` | `OpenAI:ApiKey` | `OPENAI_API_KEY` | `gpt-3.5-turbo` |
+| DeepSeek | `DeepSeekProvider` | `DeepSeek:ApiKey` | `DEEPSEEK_API_KEY` | `deepseek-chat` |
+
+### Configure DeepSeek
+
+In `DarwinGA.Example/appsettings.json`:
+
+```json
+{
+  "OpenAI": {
+    "ApiKey": ""
+  },
+  "DeepSeek": {
+    "ApiKey": "sk-your-deepseek-api-key-here",
+    "BaseUrl": "https://api.deepseek.com"
+  }
+}
+```
+
+Or set the API key with an environment variable:
+
+```powershell
+$env:DEEPSEEK_API_KEY = "sk-your-deepseek-api-key-here"
+```
+
+Available DeepSeek models in the example menu:
+
+- `deepseek-chat`
+- `deepseek-reasoner`
+
+You can also create the provider directly:
+
+```csharp
+using DarwinGA.AI;
+
+IAIProvider aiProvider = new DeepSeekProvider(
+    apiKey: Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY")!,
+    model: "deepseek-chat",
+    baseUrl: "https://api.deepseek.com"
+);
+```
+
+### Use `AICrosser`
+
+```csharp
+using DarwinGA;
+using DarwinGA.AI;
+using DarwinGA.Evolutionals.BinaryEvolutional;
+using DarwinGA.Evolutionals.BinaryEvolutional.Crossers;
+using DarwinGA.Evolutionals.BinaryEvolutional.Mutations;
+using DarwinGA.Selections;
+using DarwinGA.Terminations;
+
+var aiProvider = new DeepSeekProvider(apiKey: "sk-your-deepseek-api-key", model: "deepseek-chat");
+var aiCrosser = new AICrosser(aiProvider, populationSize: 50);
+
+var ga = new GeneticAlgorithm<BinaryEvolutional>
+{
+    NewItem = () => new BinaryEvolutional(20),
+    Fitness = chromosome => Evaluate(chromosome),
+
+    // Use population-wide AI crossover instead of pairwise Cross.
+    PopulationCrosser = aiCrosser,
+    Cross = null,
+
+    Mutation = new KFlipMutation(1),
+    Selection = new TournamentSelection(3),
+    MutationProbability = 0.1,
+    CrossoverProbability = 0.8,
+    Termination = new GenerationNumTermination(10),
+    OnNewGeneration = result => Console.WriteLine($"Gen {result.GenerationNum}: {result.BestFitness:F2}")
+};
+
+ga.Run(populationSize: 50);
+```
+
+Run **Example 5** in `DarwinGA.Example` to choose between OpenAI and DeepSeek interactively. AI crossover makes API calls during evolution, so start with small populations and few generations while testing.
+
+---
+
 ## 📋 Full Example
 
 The **0/1 Knapsack** problem: choose a subset of items to maximize total value without exceeding a weight capacity.
@@ -481,7 +570,8 @@ ga.Run(populationSize: 120);
 | `NewItem` | `Func<T>` | Factory that creates a new random individual. **Required.** |
 | `Fitness` | `Func<T, double>` | Evaluates how good a solution is. Higher = better. **Required.** |
 | `Mutation` | `IMutation<T>` | Mutation operator. **Required.** |
-| `Cross` | `ICross<T>` | Crossover operator. **Required.** |
+| `Cross` | `ICross<T>?` | Pairwise crossover operator. Required unless `PopulationCrosser` is set. |
+| `PopulationCrosser` | `IPopulationCrosser<T>?` | Population-wide crossover operator, used by `AICrosser`. Required unless `Cross` is set. |
 | `Selection` | `ISelection` | Parent selection strategy. **Required.** |
 | `Termination` | `ITermination` | When to stop evolving. **Required.** |
 | `OnNewGeneration` | `Action<GenerationResult<T>>` | Callback invoked after each generation. **Required.** |
@@ -523,6 +613,8 @@ ga.Run(populationSize: 120);
 | `IGAEvolutional<T>` | Marker for any evolvable type (your chromosome). |
 | `IMutation<T>` | `void Apply(T evo, double mutationProb)` — mutate an individual. |
 | `ICross<T>` | `T Apply(T a, T b)` — produce a child from two parents. |
+| `IPopulationCrosser<T>` | `List<T> CrossPopulation(List<T> parents)` — produce offspring from a selected parent population. |
+| `IAIProvider` | `Task<string> SendPromptAsync(string prompt)` — abstraction used by AI-based genetic operators. |
 | `ISelection` | `IEnumerable<FitnessResult> Select(...)` — choose parents from the population. |
 | `ITermination` | `bool ShouldTerminate(GenerationResultBase result)` — stop condition. |
 | `IDiversityMetric<T>` | `double Distance(T a, T b)` — measure distance between individuals. |

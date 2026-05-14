@@ -119,15 +119,27 @@ static IAIProvider GetAIProvider()
         .AddJsonFile(settingsFile, optional: false, reloadOnChange: true)
         .Build();
 
-    string apiKey = configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+    Console.WriteLine("Choose an AI provider:");
+    Console.WriteLine(" 1) OpenAI");
+    Console.WriteLine(" 2) DeepSeek");
+    Console.Write("Option (1-2): ");
+    var providerOption = Console.ReadLine()?.Trim();
 
-    if (string.IsNullOrEmpty(apiKey))
-    {
+    if (providerOption == "2")
+        return CreateDeepSeekProvider(configuration);
+
+    return CreateOpenAIProvider(configuration);
+}
+
+static IAIProvider CreateOpenAIProvider(IConfiguration configuration)
+{
+    string? apiKey = configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+
+    if (string.IsNullOrWhiteSpace(apiKey))
         throw new InvalidOperationException("OpenAI API key not found in appsettings.json or environment variables.");
-    }
 
     // Load available models if the provider supports it
-    Console.WriteLine("Choose an model:");
+    Console.WriteLine("Choose a model:");
     Console.WriteLine(" 1) gpt-5.5");
     Console.WriteLine(" 2) gpt-5.5-pro");
     Console.WriteLine(" 3) gpt-5.4");
@@ -148,7 +160,29 @@ static IAIProvider GetAIProvider()
         _ => "gpt-3.5-turbo"
     };
 
-    var aiProvider = new ChatGPTProvider(apiKey,model);
+    return new ChatGPTProvider(apiKey, model);
+}
 
-    return aiProvider;
+static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
+{
+    string? apiKey = configuration["DeepSeek:ApiKey"] ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
+
+    if (string.IsNullOrWhiteSpace(apiKey))
+        throw new InvalidOperationException("DeepSeek API key not found in appsettings.json or environment variables.");
+
+    Console.WriteLine("Choose a model:");
+    Console.WriteLine(" 1) deepseek-chat");
+    Console.WriteLine(" 2) deepseek-reasoner");
+    Console.Write("Option (1-2): ");
+    var option = Console.ReadLine()?.Trim();
+
+    string model = option switch
+    {
+        "2" => "deepseek-reasoner",
+        _ => "deepseek-chat"
+    };
+
+    string baseUrl = configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
+
+    return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl);
 }

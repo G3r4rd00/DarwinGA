@@ -49,8 +49,8 @@ TestResult.xml
 nunit-*.xml
 
 # Configuration files with secrets
+appsettings.json
 appsettings.*.json
-!appsettings.json
 !appsettings.Example.json
 
 # Build Results of an ASP.NET Web project

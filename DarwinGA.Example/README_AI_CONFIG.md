@@ -2,44 +2,34 @@
 
 ## Setup
 
-1. **Choose how to provide credentials:**
-   - Add keys to `appsettings.json`, or
-   - Set environment variables (`OPENAI_API_KEY` / `DEEPSEEK_API_KEY`).
+1. **Copy the example configuration file:**
+   ```bash
+   cp appsettings.Example.json appsettings.json
+   ```
 
-   The example reads `appsettings.json`, `appsettings.debug.json`, or `appsettings.Debug.json` from the output folder. Keep real secrets out of source control.
-
-2. **Edit `appsettings.json` and add the API key for the provider you want to use:**
+2. **Edit `appsettings.json` and add your OpenAI API key:**
    ```json
    {
-     "OpenAI": {
-       "ApiKey": "sk-your-openai-api-key-here"
-     },
-     "DeepSeek": {
-       "ApiKey": "sk-your-deepseek-api-key-here",
-       "BaseUrl": "https://api.deepseek.com"
+     "AI": {
+       "Provider": "ChatGPT",
+       "ChatGPT": {
+         "ApiKey": "sk-your-actual-api-key-here",
+         "Model": "gpt-3.5-turbo"
+       }
      }
    }
    ```
 
-   You can also use environment variables instead of storing keys in `appsettings.json`:
-   - `OPENAI_API_KEY`
-   - `DEEPSEEK_API_KEY`
-
-3. **Get your API key:**
-   - OpenAI:
-     - Go to https://platform.openai.com/api-keys
-     - Create a new API key
-     - Copy and paste it into your `appsettings.json`, or set `OPENAI_API_KEY`
-   - DeepSeek:
-     - Go to https://platform.deepseek.com/api_keys
-     - Create a new API key
-     - Copy and paste it into your `appsettings.json`, or set `DEEPSEEK_API_KEY`
+3. **Get your API key from OpenAI:**
+   - Go to https://platform.openai.com/api-keys
+   - Create a new API key
+   - Copy and paste it into your `appsettings.json`
 
 ## Security
 
 - The `appsettings.json` file is excluded from Git via `.gitignore`
 - Never commit your API key to the repository
-- Use a sanitized settings file as a template for other developers
+- Use `appsettings.Example.json` as a template for other developers
 
 ## Usage
 
@@ -48,53 +38,34 @@ Run Example 5 from the menu to see the AI-based crossover in action:
 ```
 Choose an example:
 ...
-5. AI-based Population Crossover
+5. AI-based Population Crossover (ChatGPT)
 ...
 ```
 
-The example then asks which provider to use:
 
-```text
-Choose an AI provider:
- 1) OpenAI
- 2) DeepSeek
-```
+## Available Models (June 2024)
 
-For DeepSeek, the example offers:
+You can use the following ChatGPT models (see https://developers.openai.com/api/docs/models/all):
 
-```text
-Choose a model:
- 1) deepseek-chat
- 2) deepseek-reasoner
-```
-
-
-## Available Models
-
-### OpenAI
-
-You can use the following OpenAI models from the example menu:
-
-- `gpt-5.5`
-- `gpt-5.5-pro`
-- `gpt-5.4`
-- `gpt-4o`
-- `gpt-4`
 - `gpt-3.5-turbo`
+- `gpt-3.5-turbo-0125`
+- `gpt-3.5-turbo-1106`
+- `gpt-3.5-turbo-0613`
+- `gpt-3.5-turbo-16k`
+- `gpt-4`
+- `gpt-4-0613`
+- `gpt-4-32k`
+- `gpt-4-32k-0613`
+- `gpt-4-turbo`
+- `gpt-4-0125-preview`
+- `gpt-4-1106-preview`
+- `gpt-4o`
 
-### DeepSeek
-
-You can use the following DeepSeek models from the example menu:
-
-- `deepseek-chat`
-- `deepseek-reasoner`
-
-`DeepSeekProvider` uses `https://api.deepseek.com` by default. Override it with `DeepSeek:BaseUrl` if needed.
+**Note:** Some models (like `gpt-4o`, `gpt-4-turbo`, `gpt-4-0125-preview`, `gpt-4-1106-preview`) do NOT support the `temperature` parameter. The system will automatically omit it for those models.
 
 ## Cost Considerations
 
-Each generation can make one API call to the selected provider. Consider:
+Each generation makes one API call to OpenAI. Consider:
 - Start with small populations (10-20 individuals)
 - Use few generations (5-10) for testing
-- Monitor OpenAI usage at https://platform.openai.com/usage
-- Monitor DeepSeek usage in the DeepSeek platform dashboard
+- Monitor your OpenAI usage at https://platform.openai.com/usage

@@ -14,8 +14,9 @@ while (true)
     Console.WriteLine("Select problem type:");
     Console.WriteLine("  1) 0/1 Knapsack");
     Console.WriteLine("  2) Job Shop Scheduling");
-    Console.WriteLine("  3) Neural network evolution (XOR)\n");
-    Console.Write("Option (1-3, default 1): ");
+    Console.WriteLine("  3) Neural network evolution (XOR)");
+    Console.WriteLine("  4) Grid walker pathfinding (byte-chain chromosome)\n");
+    Console.Write("Option (1-4, default 1): ");
     var problemOption = Console.ReadLine()?.Trim();
     if (string.IsNullOrWhiteSpace(problemOption))
         problemOption = "1";
@@ -31,10 +32,47 @@ while (true)
         case "3":
             Example04_NeuralNetworkXor.Run();
             break;
+        case "4":
+            RunGridWalkerMenu();
+            break;
         default:
             Console.WriteLine("Invalid option.");
             break;
     }
+
+static void RunGridWalkerMenu()
+{
+    Console.Clear();
+    Console.WriteLine("DarwinGA - Grid walker pathfinding");
+    Console.WriteLine("================================\n");
+
+    Console.WriteLine("Choose an algorithm:");
+    Console.WriteLine("  1) + Diversity + Generation statistics");
+    Console.WriteLine("  2) + Island Model (ring migration)");
+    Console.WriteLine("  3) + AI Population Crosser\n");
+
+    Console.Write("Option (1-3, default 3): ");
+    var option = Console.ReadLine()?.Trim();
+    if (string.IsNullOrWhiteSpace(option))
+        option = "3";
+
+    switch (option)
+    {
+        case "1":
+            Example07_GridWalker.RunWithDiversity();
+            break;
+        case "2":
+            Example07_GridWalker.RunWithIslandModel();
+            break;
+        case "3":
+            var aiProvider = GetAIProvider();
+            Example07_GridWalker.RunWithAICrosser(aiProvider);
+            break;
+        default:
+            Console.WriteLine("Invalid option.");
+            break;
+    }
+}
 
     Console.WriteLine("\nPress any key to return to the menu...");
     Console.ReadKey();

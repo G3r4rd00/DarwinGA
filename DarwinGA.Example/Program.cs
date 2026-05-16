@@ -1,6 +1,7 @@
 using DarwinGA.AI;
 using DarwinGA.Example;
 using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 
 // Add your logic to use openAiService here.
 while (true)
@@ -14,8 +15,10 @@ while (true)
     Console.WriteLine("  1) 0/1 Knapsack");
     Console.WriteLine("  2) Job Shop Scheduling");
     Console.WriteLine("  3) Neural network evolution (XOR)\n");
-    Console.Write("Option (1-3): ");
+    Console.Write("Option (1-3, default 1): ");
     var problemOption = Console.ReadLine()?.Trim();
+    if (string.IsNullOrWhiteSpace(problemOption))
+        problemOption = "1";
 
     switch (problemOption)
     {
@@ -48,8 +51,10 @@ static void RunKnapsackMenu()
     Console.WriteLine("  2) + Island Model (ring migration)");
     Console.WriteLine("  3) + AI Population Crosser\n");
 
-    Console.Write("Option (1-3): ");
+    Console.Write("Option (1-3, default 3): ");
     var option = Console.ReadLine()?.Trim();
+    if (string.IsNullOrWhiteSpace(option))
+        option = "3";
 
     switch (option)
     {
@@ -80,8 +85,10 @@ static void RunJobShopMenu()
     Console.WriteLine("  2) + Island Model (ring migration)");
     Console.WriteLine("  3) + AI Population Crosser\n");
 
-    Console.Write("Option (1-3): ");
+    Console.Write("Option (1-3, default 3): ");
     var option = Console.ReadLine()?.Trim();
+    if (string.IsNullOrWhiteSpace(option))
+        option = "3";
 
     switch (option)
     {
@@ -122,8 +129,14 @@ static IAIProvider GetAIProvider()
     Console.WriteLine("Choose an AI provider:");
     Console.WriteLine(" 1) OpenAI");
     Console.WriteLine(" 2) DeepSeek");
-    Console.Write("Option (1-2): ");
+    Console.WriteLine(" 3) LM Studio (OpenAI-compatible local API)");
+    Console.Write("Option (1-3, default 3): ");
     var providerOption = Console.ReadLine()?.Trim();
+    if (string.IsNullOrWhiteSpace(providerOption))
+        providerOption = "3";
+
+    if (providerOption == "3")
+        return CreateLmStudioProvider(configuration);
 
     if (providerOption == "2")
         return CreateDeepSeekProvider(configuration);
@@ -185,4 +198,80 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
     string baseUrl = configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
 
     return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl);
+}
+
+static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
+{
+    string baseUrl = configuration["LMStudio:BaseUrl"] ?? "http://localhost:1234/v1";
+    string? apiKey = Environment.GetEnvironmentVariable("LMSTUDIO_API_KEY");
+
+    if (string.IsNullOrWhiteSpace(baseUrl))
+        throw new InvalidOperationException("LM Studio BaseUrl was not found in appsettings.json.");
+
+    var models = GetLmStudioModels(baseUrl, apiKey);
+    string model = SelectLmStudioModel(models);
+
+    if (string.IsNullOrWhiteSpace(model))
+    {
+        Console.Write("Model not found automatically. Enter LM Studio model id manually: ");
+        model = Console.ReadLine()?.Trim() ?? string.Empty;
+    }
+
+    if (string.IsNullOrWhiteSpace(model))
+        throw new InvalidOperationException("LM Studio model cannot be empty.");
+
+    return new LMStudioProvider(baseUrl, model, apiKey);
+}
+
+static List<string> GetLmStudioModels(string baseUrl, string? apiKey)
+{
+    try
+    {
+        using var httpClient = new HttpClient();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+
+        var normalizedBaseUrl = baseUrl.TrimEnd('/');
+        var endpoint = $"{normalizedBaseUrl}/models";
+        var response = httpClient.GetAsync(endpoint).GetAwaiter().GetResult();
+
+        if (!response.IsSuccessStatusCode)
+            return new List<string>();
+
+        var json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        using var document = JsonDocument.Parse(json);
+
+        if (!document.RootElement.TryGetProperty("data", out var dataElement) || dataElement.ValueKind != JsonValueKind.Array)
+            return new List<string>();
+
+        return dataElement.EnumerateArray()
+            .Select(x => x.TryGetProperty("id", out var idElement) ? idElement.GetString() : null)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+    catch
+    {
+        return new List<string>();
+    }
+}
+
+static string SelectLmStudioModel(IReadOnlyList<string> models)
+{
+    if (models.Count == 0)
+        return string.Empty;
+
+    Console.WriteLine("Choose a LM Studio model:");
+    for (int i = 0; i < models.Count; i++)
+        Console.WriteLine($" {i + 1}) {models[i]}");
+
+    Console.Write($"Option (1-{models.Count}, default 1): ");
+    var option = Console.ReadLine()?.Trim();
+
+    if (int.TryParse(option, out var index) && index >= 1 && index <= models.Count)
+        return models[index - 1];
+
+    return models[0];
 }

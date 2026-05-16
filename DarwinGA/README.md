@@ -16,7 +16,7 @@ Define your problem. Let evolution find the solution.
 - Email: `gerardotous@gmail.com`
 - LinkedIn: https://www.linkedin.com/in/gerardo-tous-vallespir-42491636/
 
-[Quick Start](#-quick-start) · [Features](#-features-at-a-glance) · [Operators](#-built-in-operators) · [Examples](#-full-example) · [API Reference](#-api-reference)
+[Quick Start](#-quick-start) · [Features](#-features-at-a-glance) · [Local AI with LM Studio](#-local-ai-with-lm-studio-no-token-cost) · [Operators](#-built-in-operators) · [Examples](#-full-example) · [API Reference](#-api-reference)
 
 
 
@@ -51,6 +51,7 @@ The engine evolves a population of candidate solutions across generations until 
 | 💾 **Checkpoint / Resume** support | ✅ | Rare |
 | 📈 **Adaptive mutation/crossover with stagnation tracking** | ✅ | Rare |
 | 🧠 **Neuroevolution** support (ActivationNetwork) | ✅ | ❌ |
+| 🖥️ **Local AI crossover with LM Studio** (OpenAI-compatible) | ✅ | Rare |
 | 📊 **Generation statistics** (avg/min/max/stddev + diversity index) | ✅ | ❌ |
 | 🏝️ **Island Model** (multi-population + migration) | ✅ | ❌ |
 | ♻️ **Reinsertion** strategies (carry elites to next generation) | ✅ | ❌ |
@@ -72,6 +73,28 @@ Or via the NuGet Package Manager in Visual Studio:
 ```
 Install-Package DarwinGA
 ```
+
+---
+
+## 🖥️ Local AI with LM Studio (No token cost)
+
+DarwinGA supports AI-based crossover using providers that implement `IAIProvider`.  
+If you use **LM Studio** locally, you can run AI crossover against your local OpenAI-compatible endpoint and avoid cloud token costs.
+
+Benefits:
+
+- ✅ Run AI-guided crossover fully local
+- ✅ No external API token usage for crossover calls
+- ✅ Configurable local endpoint (`LMStudio:BaseUrl`)
+- ✅ Runtime model discovery via `GET /v1/models` in the example app
+
+In the example console app (`DarwinGA.Example`), select:
+
+1. **Problem 1) 0/1 Knapsack** (default)
+2. **Algorithm 3) AI Population Crosser** (default)
+3. **Provider 3) LM Studio** (default)
+
+The app will query your LM Studio server, list available local models, and let you choose one interactively.
 
 ---
 

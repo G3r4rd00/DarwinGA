@@ -241,7 +241,7 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
 static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
 {
     string baseUrl = configuration["LMStudio:BaseUrl"] ?? "http://localhost:1234/v1";
-    string? apiKey = Environment.GetEnvironmentVariable("LMSTUDIO_API_KEY");
+    string? apiKey = configuration["LMStudio:ApiKey"] ?? Environment.GetEnvironmentVariable("LMSTUDIO_API_KEY");
 
     if (string.IsNullOrWhiteSpace(baseUrl))
         throw new InvalidOperationException("LM Studio BaseUrl was not found in appsettings.json.");
@@ -267,7 +267,7 @@ static List<string> GetLmStudioModels(string baseUrl, string? apiKey)
     {
         using var httpClient = new HttpClient();
         if (!string.IsNullOrWhiteSpace(apiKey))
-            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+            httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
 
         var normalizedBaseUrl = baseUrl.TrimEnd('/');
         var endpoint = $"{normalizedBaseUrl}/models";

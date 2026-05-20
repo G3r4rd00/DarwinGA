@@ -241,7 +241,7 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
 static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
 {
     string baseUrl = configuration["LMStudio:BaseUrl"] ?? "http://localhost:1234/v1";
-    string? apiKey = configuration["LMStudio:ApiKey"] ?? Environment.GetEnvironmentVariable("LMSTUDIO_API_KEY");
+    string? apiKey = configuration["LMStudio:ApiKey"] ?? "sk-lm-mrpJFc9W:tpjJ8TAMJGZG1wYKJBkJ";
 
     if (string.IsNullOrWhiteSpace(baseUrl))
         throw new InvalidOperationException("LM Studio BaseUrl was not found in appsettings.json.");

@@ -15,8 +15,9 @@ while (true)
     Console.WriteLine("  1) 0/1 Knapsack");
     Console.WriteLine("  2) Job Shop Scheduling");
     Console.WriteLine("  3) Neural network evolution (XOR)");
-    Console.WriteLine("  4) Grid walker pathfinding (byte-chain chromosome)\n");
-    Console.Write("Option (1-4, default 1): ");
+    Console.WriteLine("  4) Grid walker pathfinding (byte-chain chromosome)");
+    Console.WriteLine("  5) Traveling Salesman (city distance matrix)\n");
+    Console.Write("Option (1-5, default 1): ");
     var problemOption = Console.ReadLine()?.Trim();
     if (string.IsNullOrWhiteSpace(problemOption))
         problemOption = "1";
@@ -34,6 +35,9 @@ while (true)
             break;
         case "4":
             RunGridWalkerMenu();
+            break;
+        case "5":
+            RunTravelingSalesmanMenu();
             break;
         default:
             Console.WriteLine("Invalid option.");
@@ -67,6 +71,40 @@ static void RunGridWalkerMenu()
         case "3":
             var aiProvider = GetAIProvider();
             Example07_GridWalker.RunWithAICrosser(aiProvider);
+            break;
+        default:
+            Console.WriteLine("Invalid option.");
+            break;
+    }
+}
+
+static void RunTravelingSalesmanMenu()
+{
+    Console.Clear();
+    Console.WriteLine("DarwinGA - Traveling Salesman");
+    Console.WriteLine("==============================\n");
+
+    Console.WriteLine("Choose an algorithm:");
+    Console.WriteLine("  1) + Diversity + Generation statistics");
+    Console.WriteLine("  2) + Island Model (ring migration)");
+    Console.WriteLine("  3) + AI Population Crosser\n");
+
+    Console.Write("Option (1-3, default 3): ");
+    var option = Console.ReadLine()?.Trim();
+    if (string.IsNullOrWhiteSpace(option))
+        option = "3";
+
+    switch (option)
+    {
+        case "1":
+            Example08_TravelingSalesman.RunWithDiversity();
+            break;
+        case "2":
+            Example08_TravelingSalesman.RunWithIslandModel();
+            break;
+        case "3":
+            var aiProvider = GetAIProvider();
+            Example08_TravelingSalesman.RunWithAICrosser(aiProvider);
             break;
         default:
             Console.WriteLine("Invalid option.");

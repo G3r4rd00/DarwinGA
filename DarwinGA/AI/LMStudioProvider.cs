@@ -10,6 +10,7 @@ namespace DarwinGA.AI
     {
         private readonly ChatClient _chatClient;
         private readonly List<ChatMessage> _messageHistory;
+        private readonly int _maxAccumulatedMessages;
 
         /// <summary>
         /// Creates a new LM Studio provider.
@@ -18,13 +19,17 @@ namespace DarwinGA.AI
         /// <param name="model">Model identifier loaded in LM Studio.</param>
         /// <param name="apiKey">Optional API key. LM Studio usually accepts any non-empty token.</param>
         /// <param name="systemMessage">Optional system message.</param>
-        public LMStudioProvider(string baseUrl, string model, string? apiKey = null, string systemMessage = "")
+        /// <param name="maxAccumulatedMessages">Maximum number of accumulated non-system messages kept in history (default: 3).</param>
+        public LMStudioProvider(string baseUrl, string model, string? apiKey = null, string systemMessage = "", int maxAccumulatedMessages = 3)
         {
             if (string.IsNullOrWhiteSpace(baseUrl))
                 throw new ArgumentException("Base URL cannot be null or empty.", nameof(baseUrl));
 
             if (string.IsNullOrWhiteSpace(model))
                 throw new ArgumentException("Model cannot be null or empty.", nameof(model));
+
+            if (maxAccumulatedMessages < 1)
+                throw new ArgumentOutOfRangeException(nameof(maxAccumulatedMessages), "Max accumulated messages must be greater than 0.");
 
             var options = new OpenAI.OpenAIClientOptions
             {
@@ -48,6 +53,8 @@ Learn from the evolutionary progress across generations to make better crossover
             if (!string.IsNullOrWhiteSpace(systemMessage))
                 defaultSystemMessage = systemMessage;
 
+            _maxAccumulatedMessages = maxAccumulatedMessages;
+
             _messageHistory = new List<ChatMessage>()
             {
                 new SystemChatMessage(defaultSystemMessage)
@@ -57,13 +64,24 @@ Learn from the evolutionary progress across generations to make better crossover
         public async Task<string> SendPromptAsync(string prompt)
         {
             _messageHistory.Add(new UserChatMessage(prompt));
+            TrimMessageHistory();
 
             var response = await _chatClient.CompleteChatAsync(_messageHistory);
             var text = response.Value.Content[0].Text;
 
             _messageHistory.Add(new AssistantChatMessage(text));
+            TrimMessageHistory();
 
             return text;
+        }
+
+        private void TrimMessageHistory()
+        {
+            int maxTotalMessages = 1 + _maxAccumulatedMessages;
+            while (_messageHistory.Count > maxTotalMessages)
+            {
+                _messageHistory.RemoveAt(1);
+            }
         }
     }
 }

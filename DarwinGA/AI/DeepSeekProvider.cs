@@ -12,6 +12,7 @@ namespace DarwinGA.AI
         private readonly DeepSeekClient _deepSeekClient;
         private readonly string _model;
         private readonly List<Message> _messageHistory;
+        private readonly int _maxAccumulatedMessages;
 
         /// <summary>
         /// Creates a new DeepSeek provider.
@@ -20,7 +21,8 @@ namespace DarwinGA.AI
         /// <param name="model">The model to use (default: deepseek-chat).</param>
         /// <param name="systemMessage">Optional system message to set the initial context for the conversation.</param>
         /// <param name="baseUrl">DeepSeek API base URL.</param>
-        public DeepSeekProvider(string apiKey, string model = "deepseek-chat", string systemMessage = "", string baseUrl = "https://api.deepseek.com")
+        /// <param name="maxAccumulatedMessages">Maximum number of accumulated non-system messages kept in history (default: 3).</param>
+        public DeepSeekProvider(string apiKey, string model = "deepseek-chat", string systemMessage = "", string baseUrl = "https://api.deepseek.com", int maxAccumulatedMessages = 3)
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException("API key cannot be null or empty.", nameof(apiKey));
@@ -30,6 +32,9 @@ namespace DarwinGA.AI
 
             if (string.IsNullOrWhiteSpace(baseUrl))
                 throw new ArgumentException("Base URL cannot be null or empty.", nameof(baseUrl));
+
+            if (maxAccumulatedMessages < 1)
+                throw new ArgumentOutOfRangeException(nameof(maxAccumulatedMessages), "Max accumulated messages must be greater than 0.");
 
             var httpClient = new HttpClient
             {
@@ -53,6 +58,8 @@ Learn from the evolutionary progress across generations to make better crossover
             if (!string.IsNullOrWhiteSpace(systemMessage))
                 defaultSystemMessage = systemMessage;
 
+            _maxAccumulatedMessages = maxAccumulatedMessages;
+
             _messageHistory = new List<Message>()
             {
                 Message.NewSystemMessage(defaultSystemMessage)
@@ -62,6 +69,7 @@ Learn from the evolutionary progress across generations to make better crossover
         public async Task<string> SendPromptAsync(string prompt)
         {
             _messageHistory.Add(Message.NewUserMessage(prompt));
+            TrimMessageHistory();
 
             var request = new ChatRequest
             {
@@ -76,8 +84,18 @@ Learn from the evolutionary progress across generations to make better crossover
                 throw new InvalidOperationException(_deepSeekClient.ErrorMessage ?? "DeepSeek response did not include a message.");
 
             _messageHistory.Add(Message.NewAssistantMessage(message));
+            TrimMessageHistory();
 
             return message;
+        }
+
+        private void TrimMessageHistory()
+        {
+            int maxTotalMessages = 1 + _maxAccumulatedMessages;
+            while (_messageHistory.Count > maxTotalMessages)
+            {
+                _messageHistory.RemoveAt(1);
+            }
         }
     }
 }

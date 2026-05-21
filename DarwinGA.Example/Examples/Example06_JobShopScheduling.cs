@@ -16,6 +16,21 @@ namespace DarwinGA.Example
     {
         private const int BitsPerOperation = 4;
 
+        public static void RunWithDiversity(GeneticAlgorithmSettings settings)
+        {
+            RunWithDiversity();
+        }
+
+        public static void RunWithIslandModel(GeneticAlgorithmSettings settings)
+        {
+            RunWithIslandModel();
+        }
+
+        public static void RunWithAICrosser(IAIProvider aiProvider, GeneticAlgorithmSettings settings)
+        {
+            RunWithAICrosser(aiProvider);
+        }
+
         private readonly record struct Operation(int JobId, int OperationId, int MachineId, int Duration);
 
         private sealed class JobShopInstance

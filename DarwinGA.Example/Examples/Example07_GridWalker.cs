@@ -28,6 +28,21 @@ namespace DarwinGA.Example
             (6, 4), (6, 5)
         ];
 
+        public static void RunWithDiversity(GeneticAlgorithmSettings settings)
+        {
+            RunWithDiversity();
+        }
+
+        public static void RunWithIslandModel(GeneticAlgorithmSettings settings)
+        {
+            RunWithIslandModel();
+        }
+
+        public static void RunWithAICrosser(IAIProvider aiProvider, GeneticAlgorithmSettings settings)
+        {
+            RunWithAICrosser(aiProvider);
+        }
+
         public static void RunWithDiversity()
         {
             Console.WriteLine("[Example 7] Grid Walker + Diversity + Generation statistics\n");

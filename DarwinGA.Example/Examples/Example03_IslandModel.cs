@@ -6,6 +6,11 @@ namespace DarwinGA.Example
 {
     internal static class Example03_IslandModel
     {
+        public static void Run(GeneticAlgorithmSettings settings)
+        {
+            Run();
+        }
+
         // Example 3
         // 0/1 Knapsack solved with an Island Model (multiple populations + migration).
         // Demonstrates:

@@ -7,6 +7,11 @@ namespace DarwinGA.Example
 {
     internal static class Example04_NeuralNetworkXor
     {
+        public static void Run(GeneticAlgorithmSettings settings)
+        {
+            Run();
+        }
+
         // Example 4
         // Neural network evolution (ActivationNetworkEvolutional) to solve XOR.
         // Demonstrates:

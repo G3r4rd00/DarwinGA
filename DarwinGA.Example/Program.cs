@@ -3,6 +3,9 @@ using DarwinGA.Example;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 
+var appConfiguration = LoadAppConfiguration();
+var gaSettings = GeneticAlgorithmSettings.FromConfiguration(appConfiguration);
+
 // Add your logic to use openAiService here.
 while (true)
 {
@@ -25,26 +28,26 @@ while (true)
     switch (problemOption)
     {
         case "1":
-            RunKnapsackMenu();
+            RunKnapsackMenu(gaSettings, appConfiguration);
             break;
         case "2":
-            RunJobShopMenu();
+            RunJobShopMenu(gaSettings, appConfiguration);
             break;
         case "3":
-            Example04_NeuralNetworkXor.Run();
+            Example04_NeuralNetworkXor.Run(gaSettings);
             break;
         case "4":
-            RunGridWalkerMenu();
+            RunGridWalkerMenu(gaSettings, appConfiguration);
             break;
         case "5":
-            RunTravelingSalesmanMenu();
+            RunTravelingSalesmanMenu(gaSettings, appConfiguration);
             break;
         default:
             Console.WriteLine("Invalid option.");
             break;
     }
 
-static void RunGridWalkerMenu()
+static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
 {
     Console.Clear();
     Console.WriteLine("DarwinGA - Grid walker pathfinding");
@@ -63,14 +66,14 @@ static void RunGridWalkerMenu()
     switch (option)
     {
         case "1":
-            Example07_GridWalker.RunWithDiversity();
+            Example07_GridWalker.RunWithDiversity(gaSettings);
             break;
         case "2":
-            Example07_GridWalker.RunWithIslandModel();
+            Example07_GridWalker.RunWithIslandModel(gaSettings);
             break;
         case "3":
-            var aiProvider = GetAIProvider();
-            Example07_GridWalker.RunWithAICrosser(aiProvider);
+            var aiProvider = GetAIProvider(appConfiguration);
+            Example07_GridWalker.RunWithAICrosser(aiProvider, gaSettings);
             break;
         default:
             Console.WriteLine("Invalid option.");
@@ -78,7 +81,7 @@ static void RunGridWalkerMenu()
     }
 }
 
-static void RunTravelingSalesmanMenu()
+static void RunTravelingSalesmanMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
 {
     Console.Clear();
     Console.WriteLine("DarwinGA - Traveling Salesman");
@@ -97,14 +100,14 @@ static void RunTravelingSalesmanMenu()
     switch (option)
     {
         case "1":
-            Example08_TravelingSalesman.RunWithDiversity();
+            Example08_TravelingSalesman.RunWithDiversity(gaSettings);
             break;
         case "2":
-            Example08_TravelingSalesman.RunWithIslandModel();
+            Example08_TravelingSalesman.RunWithIslandModel(gaSettings);
             break;
         case "3":
-            var aiProvider = GetAIProvider();
-            Example08_TravelingSalesman.RunWithAICrosser(aiProvider);
+            var aiProvider = GetAIProvider(appConfiguration);
+            Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
             break;
         default:
             Console.WriteLine("Invalid option.");
@@ -116,7 +119,7 @@ static void RunTravelingSalesmanMenu()
     Console.ReadKey();
 }
 
-static void RunKnapsackMenu()
+static void RunKnapsackMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
 {
     Console.Clear();
     Console.WriteLine("DarwinGA - 0/1 Knapsack");
@@ -135,14 +138,14 @@ static void RunKnapsackMenu()
     switch (option)
     {
         case "1":
-            Example01_OneMaxWithStatistics.Run();
+            Example01_OneMaxWithStatistics.Run(gaSettings);
             break;
         case "2":
-            Example03_IslandModel.Run();
+            Example03_IslandModel.Run(gaSettings);
             break;
         case "3":
-            var aiProvider = GetAIProvider();
-            Example05_AICrosser.Run(aiProvider);
+            var aiProvider = GetAIProvider(appConfiguration);
+            Example05_AICrosser.Run(aiProvider, gaSettings);
             break;
         default:
             Console.WriteLine("Invalid option.");
@@ -150,7 +153,7 @@ static void RunKnapsackMenu()
     }
 }
 
-static void RunJobShopMenu()
+static void RunJobShopMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
 {
     Console.Clear();
     Console.WriteLine("DarwinGA - Job Shop Scheduling");
@@ -169,14 +172,14 @@ static void RunJobShopMenu()
     switch (option)
     {
         case "1":
-            Example06_JobShopScheduling.RunWithDiversity();
+            Example06_JobShopScheduling.RunWithDiversity(gaSettings);
             break;
         case "2":
-            Example06_JobShopScheduling.RunWithIslandModel();
+            Example06_JobShopScheduling.RunWithIslandModel(gaSettings);
             break;
         case "3":
-            var aiProvider = GetAIProvider();
-            Example06_JobShopScheduling.RunWithAICrosser(aiProvider);
+            var aiProvider = GetAIProvider(appConfiguration);
+            Example06_JobShopScheduling.RunWithAICrosser(aiProvider, gaSettings);
             break;
         default:
             Console.WriteLine("Invalid option.");
@@ -184,7 +187,7 @@ static void RunJobShopMenu()
     }
 }
 
-static IAIProvider GetAIProvider()
+static IConfigurationRoot LoadAppConfiguration()
 {
     const string defaultSettingsFile = "appsettings.json";
     const string debugSettingsFile = "appsettings.debug.json";
@@ -197,11 +200,14 @@ static IAIProvider GetAIProvider()
             ? legacyDebugSettingsFile
             : defaultSettingsFile;
 
-    var configuration = new ConfigurationBuilder()
+    return new ConfigurationBuilder()
         .SetBasePath(basePath)
         .AddJsonFile(settingsFile, optional: false, reloadOnChange: true)
         .Build();
+}
 
+static IAIProvider GetAIProvider(IConfiguration configuration)
+{
     Console.WriteLine("Choose an AI provider:");
     Console.WriteLine(" 1) OpenAI");
     Console.WriteLine(" 2) DeepSeek");
@@ -223,6 +229,7 @@ static IAIProvider GetAIProvider()
 static IAIProvider CreateOpenAIProvider(IConfiguration configuration)
 {
     string? apiKey = configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
 
     if (string.IsNullOrWhiteSpace(apiKey))
         throw new InvalidOperationException("OpenAI API key not found in appsettings.json or environment variables.");
@@ -249,12 +256,13 @@ static IAIProvider CreateOpenAIProvider(IConfiguration configuration)
         _ => "gpt-3.5-turbo"
     };
 
-    return new ChatGPTProvider(apiKey, model);
+    return new ChatGPTProvider(apiKey, model, maxAccumulatedMessages: maxAccumulatedMessages);
 }
 
 static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
 {
     string? apiKey = configuration["DeepSeek:ApiKey"] ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
+    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
 
     if (string.IsNullOrWhiteSpace(apiKey))
         throw new InvalidOperationException("DeepSeek API key not found in appsettings.json or environment variables.");
@@ -273,13 +281,14 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
 
     string baseUrl = configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
 
-    return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl);
+    return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl, maxAccumulatedMessages: maxAccumulatedMessages);
 }
 
 static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
 {
     string baseUrl = configuration["LMStudio:BaseUrl"] ?? "http://localhost:1234/v1";
     string? apiKey = configuration["LMStudio:ApiKey"] ?? "sk-lm-mrpJFc9W:tpjJ8TAMJGZG1wYKJBkJ";
+    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
 
     if (string.IsNullOrWhiteSpace(baseUrl))
         throw new InvalidOperationException("LM Studio BaseUrl was not found in appsettings.json.");
@@ -296,7 +305,13 @@ static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
     if (string.IsNullOrWhiteSpace(model))
         throw new InvalidOperationException("LM Studio model cannot be empty.");
 
-    return new LMStudioProvider(baseUrl, model, apiKey);
+    return new LMStudioProvider(baseUrl, model, apiKey, maxAccumulatedMessages: maxAccumulatedMessages);
+}
+
+static int GetMaxAccumulatedMessages(IConfiguration configuration)
+{
+    var rawValue = configuration["AI:MaxAccumulatedMessages"];
+    return int.TryParse(rawValue, out var value) && value > 0 ? value : 3;
 }
 
 static List<string> GetLmStudioModels(string baseUrl, string? apiKey)

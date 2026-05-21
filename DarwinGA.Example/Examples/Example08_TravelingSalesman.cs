@@ -1,3 +1,4 @@
+
 using DarwinGA;
 using DarwinGA.AI;
 using DarwinGA.Diversity;
@@ -62,17 +63,18 @@ namespace DarwinGA.Example
             double optimalDist = EvaluateRouteDistance(Enumerable.Range(0, CityCount).ToList());
             double nnDist = EvaluateRouteDistance(ComputeNearestNeighborRoute());
             Console.WriteLine($"\nKnown optimal route: 0 -> 1 -> 2 -> ... -> {CityCount - 1}");
+            Console.WriteLine($"(Starts at city 0 and ends at city {CityCount - 1}, visiting all cities once)");
             Console.WriteLine($"Optimal distance: {optimalDist:F1} km (each consecutive edge = 1 km)");
             Console.WriteLine($"Nearest-neighbor heuristic: {nnDist:F1} km");
         }
 
-        public static void RunWithDiversity()
+        public static void RunWithDiversity(GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + Diversity\n");
             PrintCityMap();
 
-            int populationSize = 200;
-            var ga = CreateBaseGA(enableDiversity: true);
+            int populationSize = settings.PopulationSize;
+            var ga = CreateBaseGA(settings, enableDiversity: true);
             ga.Termination = new GenerationNumTermination(1000);
             ga.OnNewGeneration = result =>
             {
@@ -87,19 +89,19 @@ namespace DarwinGA.Example
             PrintFinalSummary(ga);
         }
 
-        public static void RunWithIslandModel()
+        public static void RunWithIslandModel(GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + Island model\n");
             PrintCityMap();
 
-            int populationPerIsland = 120;
+            int populationPerIsland = settings.PopulationSize;
             var islandGa = new IslandModelGeneticAlgorithm<BinaryEvolutional>(4)
             {
                 MigrationIntervalGenerations = 10,
                 MigrantsPerIsland = 3,
                 CreateIslandAlgorithm = () =>
                 {
-                    var ga = CreateBaseGA(enableDiversity: true);
+                    var ga = CreateBaseGA(settings, enableDiversity: true);
                     ga.Termination = new GenerationNumTermination(1000);
                     return ga;
                 },
@@ -119,43 +121,56 @@ namespace DarwinGA.Example
             Console.WriteLine("\nDone.");
         }
 
-        public static void RunWithAICrosser(IAIProvider aiProvider)
+        public static void RunWithAICrosser(IAIProvider aiProvider, GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + AI Population Crosser\n");
             PrintCityMap();
 
             int chromosomeSize = MaxCitiesInRoute * BitsPerCity;
-            int populationSize = 80;
+            int populationSize = settings.PopulationSize;
 
             var citiesDesc = "";
             for (int i = 0; i < CityCount; i++)
                 citiesDesc += $"  C{i}: ({Cities[i].X:F1}, {Cities[i].Y:F1})\n";
 
-            var systemMessage = $@"You are a genetic algorithm assistant specialized in the Traveling Salesman Problem on a 2D Euclidean plane.
+            var systemMessage = $@"You are an expert genetic-algorithm crossover assistant for a Traveling Salesman Problem on a 2D Euclidean plane.
 
 PROBLEM CONTEXT:
 - {CityCount} cities with 2D coordinates:
 {citiesDesc}
-- Chromosome length: {chromosomeSize} bits
-- Encoding: each city index uses {BitsPerCity} bits (binary, 0-31). Route = sequence of city indices.
-- A valid route must visit all {CityCount} cities exactly once (a permutation).
-- Cities 0-{CityCount - 1} are valid. Values >= {CityCount} are ignored.
-- Distance between cities = Euclidean distance in the 2D plane.
+- Chromosome length: {chromosomeSize} bits.
+- Encoding: the chromosome is split into {MaxCitiesInRoute} blocks of {BitsPerCity} bits; each block decodes to one city index in binary (0-31).
+- Valid city indices are 0 to {CityCount - 1}. Values >= {CityCount} are invalid and are ignored by the decoder.
+- The decoded route is built by keeping the first occurrence of each valid city and then appending any missing cities.
+- The fitness function rewards shorter routes and penalizes routes whose decoded permutation does not start at city 0 or does not end at city {CityCount - 1}.
 
-GOAL:
-- Find the shortest possible route starting at city 0 that visits all {CityCount} cities exactly once.
-- There is NO trivial known optimal path — the algorithm must discover it.
-- Fitness is normalized from 0 to 100. Higher fitness = shorter route.
+OPTIMIZATION GOAL:
+- Produce offspring whose decoded permutation is a valid route visiting all {CityCount} cities exactly once.
+- The decoded route MUST start at city 0 (city 1 in 1-based numbering).
+- The decoded route MUST end at city {CityCount - 1} (the last city).
+- Minimize the total Euclidean distance of consecutive cities.
+- Higher fitness is better, in the range 0 to 100.
 
-YOUR TASK:
-You receive populations of binary chromosomes in JSON format and perform crossover operations to create offspring.
-Return ONLY a JSON array of binary strings with exactly {chromosomeSize} bits each. Do not include explanations or extra text.
-Learn from the evolutionary progress across generations to improve crossover decisions.";
+CROSSOVER GUIDELINES:
+- Favor offspring that preserve useful parent subsequences with short geometric distances.
+- Avoid duplicate city patterns and avoid generating many invalid values >= {CityCount}.
+- Prefer encodings that already decode to a near-permutation, instead of relying on decoder repair.
+- Strongly bias the chromosome so city 0 appears first in the decoded permutation and city {CityCount - 1} appears last in the decoded permutation.
+- Balance exploitation of good parent structures with enough variation to avoid premature convergence.
+
+OUTPUT RULES:
+- Input populations are provided in JSON.
+- Return ONLY a JSON array of binary strings.
+- Each binary string must contain exactly {chromosomeSize} characters using only '0' and '1'.
+- Return no explanations, no markdown, no comments, and no extra text.
+
+SUCCESS CRITERION:
+- Offspring should improve expected fitness by shortening route distance while respecting the fixed start and fixed end constraints in the decoded route.";
 
             _ = systemMessage;
             var aiCrosser = new AICrosser(aiProvider, populationSize);
 
-            var ga = CreateBaseGA(enableDiversity: false);
+            var ga = CreateBaseGA(settings, enableDiversity: false);
             ga.PopulationCrosser = aiCrosser;
             ga.Cross = null;
             ga.EnableParallelEvaluation = false;
@@ -184,7 +199,7 @@ Learn from the evolutionary progress across generations to improve crossover dec
             PrintFinalSummary(ga);
         }
 
-        private static GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(bool enableDiversity)
+        private static GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(GeneticAlgorithmSettings settings, bool enableDiversity)
         {
             int chromosomeSize = MaxCitiesInRoute * BitsPerCity;
 
@@ -200,7 +215,7 @@ Learn from the evolutionary progress across generations to improve crossover dec
                 Fitness = EvaluateFitness,
                 EnableParallelEvaluation = true,
                 EnableParallelBreeding = true,
-                MutationProbability = 0.12,
+                MutationProbability = settings.MutationProbability,
                 CrossoverProbability = 0.85,
                 Mutation = new KFlipMutation(4),
                 Cross = new UniformCross(0.5),
@@ -231,7 +246,14 @@ Learn from the evolutionary progress across generations to improve crossover dec
                         maxDist = DistanceMatrix[i, j];
             double worstCase = (CityCount - 1) * maxDist;
 
-            double fitness = 100.0 * (1.0 - totalDistance / worstCase);
+            double penalty = 0.0;
+            if (route[0] != 0)
+                penalty += worstCase * 0.35;
+            if (route[^1] != CityCount - 1)
+                penalty += worstCase * 0.35;
+
+            double penalizedDistance = totalDistance + penalty;
+            double fitness = 100.0 * (1.0 - penalizedDistance / worstCase);
             return Math.Clamp(fitness, 0.0, 100.0);
         }
 

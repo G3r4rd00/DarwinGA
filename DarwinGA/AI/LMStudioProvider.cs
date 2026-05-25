@@ -79,9 +79,7 @@ Learn from the evolutionary progress across generations to make better crossover
         {
             int maxTotalMessages = 1 + _maxAccumulatedMessages;
             while (_messageHistory.Count > maxTotalMessages)
-            {
                 _messageHistory.RemoveAt(1);
-            }
         }
     }
 }

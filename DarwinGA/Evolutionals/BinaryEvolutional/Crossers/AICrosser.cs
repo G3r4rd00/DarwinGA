@@ -17,8 +17,7 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
     public class AICrosser : IPopulationCrosser<BinaryEvolutional>
     {
         private readonly IAIProvider _aiProvider;
-        private int _populationSize;
-
+        
         /// <summary>
         /// Creates a new AI-based crossover operator.
         /// </summary>
@@ -26,8 +25,6 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
         public AICrosser(IAIProvider aiProvider, int populationSize)
         {
             _aiProvider = aiProvider ?? throw new ArgumentNullException(nameof(aiProvider));
-            
-            _populationSize = populationSize;
         }
 
         public List<BinaryEvolutional> CrossPopulation(List<BinaryEvolutional> parents)

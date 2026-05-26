@@ -14,6 +14,16 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional
 
         public BinaryEvolutional(int size) { 
             _genes = new bool[size];
+            RandomizeGenes();
+        }
+
+        private void RandomizeGenes()
+        {
+            Random rand = new Random();
+            for (int i = 0; i < _genes.Length; i++)
+            {
+                _genes[i] = rand.NextDouble() < 0.5;
+            }
         }
 
         public BinaryEvolutional(bool[] genes)

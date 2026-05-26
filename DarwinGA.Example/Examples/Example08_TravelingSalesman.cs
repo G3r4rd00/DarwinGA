@@ -133,41 +133,7 @@ namespace DarwinGA.Example
             for (int i = 0; i < CityCount; i++)
                 citiesDesc += $"  C{i}: ({Cities[i].X:F1}, {Cities[i].Y:F1})\n";
 
-            var systemMessage = $@"You are an expert genetic-algorithm crossover assistant for a Traveling Salesman Problem on a 2D Euclidean plane.
-
-PROBLEM CONTEXT:
-- {CityCount} cities with 2D coordinates:
-{citiesDesc}
-- Chromosome length: {chromosomeSize} bits.
-- Encoding: the chromosome is split into {CityCount} blocks of {BitsPerCity} bits; each block decodes to one city index in binary (0-31).
-- Valid city indices are 0 to {CityCount - 1}. Values >= {CityCount} are invalid and are ignored by the decoder.
-- The decoded route is built by keeping the first occurrence of each valid city and then appending any missing cities.
-- The fitness function rewards shorter routes and penalizes routes whose decoded permutation does not start at city 0 or does not end at city {CityCount - 1}.
-
-OPTIMIZATION GOAL:
-- Produce offspring whose decoded permutation is a valid route visiting all {CityCount} cities exactly once.
-- The decoded route MUST start at city 0 (city 1 in 1-based numbering).
-- The decoded route MUST end at city {CityCount - 1} (the last city).
-- Minimize the total Euclidean distance of consecutive cities.
-- Higher fitness is better, in the range 0 to 100.
-
-CROSSOVER GUIDELINES:
-- Favor offspring that preserve useful parent subsequences with short geometric distances.
-- Avoid duplicate city patterns and avoid generating many invalid values >= {CityCount}.
-- Prefer encodings that already decode to a near-permutation, instead of relying on decoder repair.
-- Strongly bias the chromosome so city 0 appears first in the decoded permutation and city {CityCount - 1} appears last in the decoded permutation.
-- Balance exploitation of good parent structures with enough variation to avoid premature convergence.
-
-OUTPUT RULES:
-- Input populations are provided in JSON.
-- Return ONLY a JSON array of binary strings.
-- Each binary string must contain exactly {chromosomeSize} characters using only '0' and '1'.
-- Return no explanations, no markdown, no comments, and no extra text.
-
-SUCCESS CRITERION:
-- Offspring should improve expected fitness by shortening route distance while respecting the fixed start and fixed end constraints in the decoded route.";
-
-            _ = systemMessage;
+           
             var aiCrosser = new AICrosser(aiProvider, populationSize);
 
             var ga = CreateBaseGA(settings, enableDiversity: false);
@@ -224,12 +190,7 @@ SUCCESS CRITERION:
                 OnNewGeneration = _ => { }
             };
 
-            if (enableDiversity)
-            {
-                ga.EnableDiversity = true;
-                ga.DiversityMetric = new DelegateDiversityMetric<BinaryEvolutional>(ExampleShared.HammingDistance);
-                ga.DiversityStrategy = new SimilarityPenaltyStrategy<BinaryEvolutional>(penaltyFactor: 0.3);
-            }
+            
 
             return ga;
         }

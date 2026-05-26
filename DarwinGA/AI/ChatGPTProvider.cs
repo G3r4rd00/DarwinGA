@@ -32,26 +32,19 @@ namespace DarwinGA.AI
                 throw new ArgumentOutOfRangeException(nameof(maxAccumulatedMessages), "Max accumulated messages must be greater than 0.");
 
             _chatClient = new ChatClient(model, apiKey);
-
-            string defaultSystemMessage = @"You are a genetic algorithm assistant specialized in evolutionary computation. 
-You receive parents of binary chromosomes in JSON format and perform crossover operations to create offspring.
-Your goal is to apply intelligent crossover strategies that:
-1. Preserve good genetic material from fit parents
-2. Explore new combinations that might improve fitness
-3. Maintain population diversity
-4. Learn from previous generations to improve crossover quality
-
-Always respond with ONLY a valid JSON array of binary strings. Do not include explanations or additional text.
-Learn from the evolutionary progress across generations to make better crossover decisions.";
-
-            if (!string.IsNullOrWhiteSpace(systemMessage))
-                defaultSystemMessage = systemMessage;
-
             _maxAccumulatedMessages = maxAccumulatedMessages;
+            _messageHistory = new List<ChatMessage>();
+        }
 
-            _messageHistory = new List<ChatMessage>(){ 
-                new SystemChatMessage(defaultSystemMessage)
-            };
+        public void SetSystemMessage(string systemMessage)
+        {
+            if (string.IsNullOrWhiteSpace(systemMessage))
+                throw new ArgumentException("System message cannot be null or empty.", nameof(systemMessage));
+            // Update the system message in the history
+            if (_messageHistory.Count > 0 && _messageHistory[0] is SystemChatMessage)
+                _messageHistory[0] = new SystemChatMessage(systemMessage);
+            else
+                _messageHistory.Insert(0, new SystemChatMessage(systemMessage));
         }
 
         public async Task<string> SendPromptAsync(string prompt)

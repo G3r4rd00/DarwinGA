@@ -13,5 +13,7 @@ namespace DarwinGA.AI
         /// <param name="prompt">The prompt to send to the AI.</param>
         /// <returns>The AI's response as a string.</returns>
         Task<string> SendPromptAsync(string prompt);
+
+        void SetSystemMessage(string systemMessage);
     }
 }

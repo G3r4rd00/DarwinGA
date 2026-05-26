@@ -1,5 +1,6 @@
 using DeepSeek;
 using DeepSeek.Classes;
+using OpenAI.Chat;
 
 namespace DarwinGA.AI
 {
@@ -44,33 +45,31 @@ namespace DarwinGA.AI
             _deepSeekClient = new DeepSeekClient(httpClient, apiKey);
             _model = model;
 
-            string defaultSystemMessage = @"You are a genetic algorithm assistant specialized in evolutionary computation. 
-You receive parents of binary chromosomes in JSON format and perform crossover operations to create offspring.
-Your goal is to apply intelligent crossover strategies that:
-1. Preserve good genetic material from fit parents
-2. Explore new combinations that might improve fitness
-3. Maintain population diversity
-4. Learn from previous generations to improve crossover quality
-
-Always respond with ONLY a valid JSON array of binary strings. Do not include explanations or additional text.
-Learn from the evolutionary progress across generations to make better crossover decisions.";
-
-            if (!string.IsNullOrWhiteSpace(systemMessage))
-                defaultSystemMessage = systemMessage;
+        
 
             _maxAccumulatedMessages = maxAccumulatedMessages;
 
-            _messageHistory = new List<Message>()
-            {
-                Message.NewSystemMessage(defaultSystemMessage)
-            };
+            _messageHistory = new List<Message>();
+
+        }
+
+        public void SetSystemMessage(string systemMessage)
+        {
+            if (string.IsNullOrWhiteSpace(systemMessage))
+                throw new ArgumentException("System message cannot be null or empty.", nameof(systemMessage));
+
+            Message m = new Message { Role = "system", Content = systemMessage };
+            if (!_messageHistory.Any())
+                _messageHistory.Add(m);
+            else
+                _messageHistory[0] = m;
         }
 
         public async Task<string> SendPromptAsync(string prompt)
         {
-            _messageHistory.Add(Message.NewUserMessage(prompt));
             TrimMessageHistory();
-
+            _messageHistory.Add(Message.NewUserMessage(prompt));
+            
             var request = new ChatRequest
             {
                 Model = _model,
@@ -91,7 +90,7 @@ Learn from the evolutionary progress across generations to make better crossover
 
         private void TrimMessageHistory()
         {
-            int maxTotalMessages = 1 + _maxAccumulatedMessages;
+            int maxTotalMessages = _maxAccumulatedMessages;
             while (_messageHistory.Count > maxTotalMessages)
                 _messageHistory.RemoveAt(1);
         }

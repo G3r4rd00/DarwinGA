@@ -6,46 +6,24 @@ using System.Text.Json;
 var appConfiguration = LoadAppConfiguration();
 var gaSettings = GeneticAlgorithmSettings.FromConfiguration(appConfiguration);
 
-// Add your logic to use openAiService here.
-while (true)
-{
-    Console.Clear();
+var directDeepSeekProvider = CreateDeepSeekProviderWithModel(appConfiguration, "deepseek-chat");
+string systemMessage = @$"
+        Rol:
+            You are an expert genetic crossing algorithm assistant helping to evolve better solutions based on the provided population data.
+        Input Data Explanation:
+            The input data consists of the current population of solutions, represented as binary bool arrays. Using this format [[1,0,1,1],[0,1,0,0],...] where each inner array is an individual solution.
+        Response format:
+            Always respond with a new population in same input format format, without any explanations or additional text.
+            Population generated size should be {gaSettings.PopulationSize}
+    ";
+    directDeepSeekProvider.SetSystemMessage(systemMessage);
 
-    Console.WriteLine("DarwinGA - Examples");
-    Console.WriteLine("===================\n");
+Example08_TravelingSalesman.RunWithAICrosser(directDeepSeekProvider, gaSettings);
+return;
 
-    Console.WriteLine("Select problem type:");
-    Console.WriteLine("  1) 0/1 Knapsack");
-    Console.WriteLine("  2) Job Shop Scheduling");
-    Console.WriteLine("  3) Neural network evolution (XOR)");
-    Console.WriteLine("  4) Grid walker pathfinding (byte-chain chromosome)");
-    Console.WriteLine("  5) Traveling Salesman (city distance matrix)\n");
-    Console.Write("Option (1-5, default 1): ");
-    var problemOption = Console.ReadLine()?.Trim();
-    if (string.IsNullOrWhiteSpace(problemOption))
-        problemOption = "1";
 
-    switch (problemOption)
-    {
-        case "1":
-            RunKnapsackMenu(gaSettings, appConfiguration);
-            break;
-        case "2":
-            RunJobShopMenu(gaSettings, appConfiguration);
-            break;
-        case "3":
-            Example04_NeuralNetworkXor.Run(gaSettings);
-            break;
-        case "4":
-            RunGridWalkerMenu(gaSettings, appConfiguration);
-            break;
-        case "5":
-            RunTravelingSalesmanMenu(gaSettings, appConfiguration);
-            break;
-        default:
-            Console.WriteLine("Invalid option.");
-            break;
-    }
+
+
 
 static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
 {
@@ -66,14 +44,14 @@ static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguratio
     switch (option)
     {
         case "1":
-            Example07_GridWalker.RunWithDiversity(gaSettings);
+            Example08_TravelingSalesman.RunWithDiversity(gaSettings);
             break;
         case "2":
-            Example07_GridWalker.RunWithIslandModel(gaSettings);
+            Example08_TravelingSalesman.RunWithIslandModel(gaSettings);
             break;
         case "3":
-            var aiProvider = GetAIProvider(appConfiguration);
-            Example07_GridWalker.RunWithAICrosser(aiProvider, gaSettings);
+            var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
+            Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
             break;
         default:
             Console.WriteLine("Invalid option.");
@@ -106,17 +84,13 @@ static void RunTravelingSalesmanMenu(GeneticAlgorithmSettings gaSettings, IConfi
             Example08_TravelingSalesman.RunWithIslandModel(gaSettings);
             break;
         case "3":
-            var aiProvider = GetAIProvider(appConfiguration);
+            var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
             Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
             break;
         default:
             Console.WriteLine("Invalid option.");
             break;
     }
-}
-
-    Console.WriteLine("\nPress any key to return to the menu...");
-    Console.ReadKey();
 }
 
 static void RunKnapsackMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
@@ -135,57 +109,11 @@ static void RunKnapsackMenu(GeneticAlgorithmSettings gaSettings, IConfiguration 
     if (string.IsNullOrWhiteSpace(option))
         option = "3";
 
-    switch (option)
-    {
-        case "1":
-            Example01_OneMaxWithStatistics.Run(gaSettings);
-            break;
-        case "2":
-            Example03_IslandModel.Run(gaSettings);
-            break;
-        case "3":
-            var aiProvider = GetAIProvider(appConfiguration);
-            Example05_AICrosser.Run(aiProvider, gaSettings);
-            break;
-        default:
-            Console.WriteLine("Invalid option.");
-            break;
-    }
+    var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
+    Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
 }
 
-static void RunJobShopMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
-{
-    Console.Clear();
-    Console.WriteLine("DarwinGA - Job Shop Scheduling");
-    Console.WriteLine("==============================\n");
 
-    Console.WriteLine("Choose an algorithm:");
-    Console.WriteLine("  1) + Diversity + Generation statistics");
-    Console.WriteLine("  2) + Island Model (ring migration)");
-    Console.WriteLine("  3) + AI Population Crosser\n");
-
-    Console.Write("Option (1-3, default 3): ");
-    var option = Console.ReadLine()?.Trim();
-    if (string.IsNullOrWhiteSpace(option))
-        option = "3";
-
-    switch (option)
-    {
-        case "1":
-            Example06_JobShopScheduling.RunWithDiversity(gaSettings);
-            break;
-        case "2":
-            Example06_JobShopScheduling.RunWithIslandModel(gaSettings);
-            break;
-        case "3":
-            var aiProvider = GetAIProvider(appConfiguration);
-            Example06_JobShopScheduling.RunWithAICrosser(aiProvider, gaSettings);
-            break;
-        default:
-            Console.WriteLine("Invalid option.");
-            break;
-    }
-}
 
 static IConfigurationRoot LoadAppConfiguration()
 {
@@ -206,7 +134,7 @@ static IConfigurationRoot LoadAppConfiguration()
         .Build();
 }
 
-static IAIProvider GetAIProvider(IConfiguration configuration)
+static IAIProvider GetAIProvider(IConfiguration configuration, int populationSize)
 {
     Console.WriteLine("Choose an AI provider:");
     Console.WriteLine(" 1) OpenAI");
@@ -223,10 +151,10 @@ static IAIProvider GetAIProvider(IConfiguration configuration)
     if (providerOption == "2")
         return CreateDeepSeekProvider(configuration);
 
-    return CreateOpenAIProvider(configuration);
+    return CreateOpenAIProvider(configuration, populationSize);
 }
 
-static IAIProvider CreateOpenAIProvider(IConfiguration configuration)
+static IAIProvider CreateOpenAIProvider(IConfiguration configuration, int populationSize)
 {
     string? apiKey = configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
     int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
@@ -256,7 +184,17 @@ static IAIProvider CreateOpenAIProvider(IConfiguration configuration)
         _ => "gpt-3.5-turbo"
     };
 
-    return new ChatGPTProvider(apiKey, model, maxAccumulatedMessages: maxAccumulatedMessages);
+    string systemMessage = @$"
+        Rol:
+            You are an expert genetic crossing algorithm assistant helping to evolve better solutions based on the provided population data.
+        Input Data Explanation:
+            The input data consists of the current population of solutions, represented as binary bool arrays. Using this format [[1,0,1,1],[0,1,0,0],...] where each inner array is an individual solution.
+        Response format:
+            Always respond with a new population in same input format format, without any explanations or additional text.
+            Population generated size should be {populationSize}
+    ";
+
+    return new ChatGPTProvider(apiKey, model,  systemMessage, maxAccumulatedMessages);
 }
 
 static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
@@ -278,6 +216,17 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
         "2" => "deepseek-reasoner",
         _ => "deepseek-chat"
     };
+
+    return CreateDeepSeekProviderWithModel(configuration, model);
+}
+
+static IAIProvider CreateDeepSeekProviderWithModel(IConfiguration configuration, string model)
+{
+    string? apiKey = configuration["DeepSeek:ApiKey"] ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
+    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
+
+    if (string.IsNullOrWhiteSpace(apiKey))
+        throw new InvalidOperationException("DeepSeek API key not found in appsettings.json or environment variables.");
 
     string baseUrl = configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
 

@@ -90,8 +90,7 @@ namespace DarwinGA.AI
 
         private void TrimMessageHistory()
         {
-            int maxTotalMessages = _maxAccumulatedMessages;
-            while (_messageHistory.Count > maxTotalMessages)
+            while (_messageHistory.Count > _maxAccumulatedMessages)
                 _messageHistory.RemoveAt(1);
         }
     }

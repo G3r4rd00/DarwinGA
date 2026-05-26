@@ -7,20 +7,47 @@ var appConfiguration = LoadAppConfiguration();
 var gaSettings = GeneticAlgorithmSettings.FromConfiguration(appConfiguration);
 
 var directDeepSeekProvider = CreateDeepSeekProviderWithModel(appConfiguration, "deepseek-chat");
-string systemMessage = @$"
-        Rol:
-            You are an expert genetic crossing algorithm assistant helping to evolve better solutions based on the provided population data.
-        Input Data Explanation:
-            The input data consists of the current population of solutions, represented as binary bool arrays. Using this format [[1,0,1,1],[0,1,0,0],...] where each inner array is an individual solution.
-        Response format:
-            Always respond with a new population in same input format format, without any explanations or additional text.
-            Population generated size should be {gaSettings.PopulationSize}
-    ";
-    directDeepSeekProvider.SetSystemMessage(systemMessage);
-
 Example08_TravelingSalesman.RunWithAICrosser(directDeepSeekProvider, gaSettings);
 return;
 
+
+static int GetMaxAccumulatedMessages(IConfiguration configuration)
+{
+    var rawValue = configuration["AI:MaxAccumulatedMessages"];
+    return int.TryParse(rawValue, out var value) && value > 0 ? value : 3;
+}
+
+static IAIProvider CreateDeepSeekProviderWithModel(IConfiguration configuration, string model)
+{
+    string? apiKey = configuration["DeepSeek:ApiKey"] ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
+    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
+
+    if (string.IsNullOrWhiteSpace(apiKey))
+        throw new InvalidOperationException("DeepSeek API key not found in appsettings.json or environment variables.");
+
+    string baseUrl = configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
+
+    return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl, maxAccumulatedMessages: maxAccumulatedMessages);
+}
+
+static IConfigurationRoot LoadAppConfiguration()
+{
+    const string defaultSettingsFile = "appsettings.json";
+    const string debugSettingsFile = "appsettings.debug.json";
+    const string legacyDebugSettingsFile = "appsettings.Debug.json";
+
+    var basePath = Directory.GetCurrentDirectory();
+    var settingsFile = File.Exists(Path.Combine(basePath, debugSettingsFile))
+        ? debugSettingsFile
+        : File.Exists(Path.Combine(basePath, legacyDebugSettingsFile))
+            ? legacyDebugSettingsFile
+            : defaultSettingsFile;
+
+    return new ConfigurationBuilder()
+        .SetBasePath(basePath)
+        .AddJsonFile(settingsFile, optional: false, reloadOnChange: true)
+        .Build();
+}
 
 
 
@@ -59,80 +86,7 @@ static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguratio
     }
 }
 
-static void RunTravelingSalesmanMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
-{
-    Console.Clear();
-    Console.WriteLine("DarwinGA - Traveling Salesman");
-    Console.WriteLine("==============================\n");
 
-    Console.WriteLine("Choose an algorithm:");
-    Console.WriteLine("  1) + Diversity + Generation statistics");
-    Console.WriteLine("  2) + Island Model (ring migration)");
-    Console.WriteLine("  3) + AI Population Crosser\n");
-
-    Console.Write("Option (1-3, default 3): ");
-    var option = Console.ReadLine()?.Trim();
-    if (string.IsNullOrWhiteSpace(option))
-        option = "3";
-
-    switch (option)
-    {
-        case "1":
-            Example08_TravelingSalesman.RunWithDiversity(gaSettings);
-            break;
-        case "2":
-            Example08_TravelingSalesman.RunWithIslandModel(gaSettings);
-            break;
-        case "3":
-            var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
-            Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
-            break;
-        default:
-            Console.WriteLine("Invalid option.");
-            break;
-    }
-}
-
-static void RunKnapsackMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
-{
-    Console.Clear();
-    Console.WriteLine("DarwinGA - 0/1 Knapsack");
-    Console.WriteLine("========================\n");
-
-    Console.WriteLine("Choose an algorithm:");
-    Console.WriteLine("  1) + Diversity + Generation statistics");
-    Console.WriteLine("  2) + Island Model (ring migration)");
-    Console.WriteLine("  3) + AI Population Crosser\n");
-
-    Console.Write("Option (1-3, default 3): ");
-    var option = Console.ReadLine()?.Trim();
-    if (string.IsNullOrWhiteSpace(option))
-        option = "3";
-
-    var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
-    Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
-}
-
-
-
-static IConfigurationRoot LoadAppConfiguration()
-{
-    const string defaultSettingsFile = "appsettings.json";
-    const string debugSettingsFile = "appsettings.debug.json";
-    const string legacyDebugSettingsFile = "appsettings.Debug.json";
-
-    var basePath = Directory.GetCurrentDirectory();
-    var settingsFile = File.Exists(Path.Combine(basePath, debugSettingsFile))
-        ? debugSettingsFile
-        : File.Exists(Path.Combine(basePath, legacyDebugSettingsFile))
-            ? legacyDebugSettingsFile
-            : defaultSettingsFile;
-
-    return new ConfigurationBuilder()
-        .SetBasePath(basePath)
-        .AddJsonFile(settingsFile, optional: false, reloadOnChange: true)
-        .Build();
-}
 
 static IAIProvider GetAIProvider(IConfiguration configuration, int populationSize)
 {
@@ -220,18 +174,6 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
     return CreateDeepSeekProviderWithModel(configuration, model);
 }
 
-static IAIProvider CreateDeepSeekProviderWithModel(IConfiguration configuration, string model)
-{
-    string? apiKey = configuration["DeepSeek:ApiKey"] ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
-    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
-
-    if (string.IsNullOrWhiteSpace(apiKey))
-        throw new InvalidOperationException("DeepSeek API key not found in appsettings.json or environment variables.");
-
-    string baseUrl = configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
-
-    return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl, maxAccumulatedMessages: maxAccumulatedMessages);
-}
 
 static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
 {
@@ -257,11 +199,7 @@ static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
     return new LMStudioProvider(baseUrl, model, apiKey, maxAccumulatedMessages: maxAccumulatedMessages);
 }
 
-static int GetMaxAccumulatedMessages(IConfiguration configuration)
-{
-    var rawValue = configuration["AI:MaxAccumulatedMessages"];
-    return int.TryParse(rawValue, out var value) && value > 0 ? value : 3;
-}
+
 
 static List<string> GetLmStudioModels(string baseUrl, string? apiKey)
 {

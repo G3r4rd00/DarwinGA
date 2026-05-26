@@ -18,7 +18,7 @@ namespace DarwinGA.Example
         
 
         private static readonly (double X, double Y)[] Cities = GenerateCities();
-        private static readonly double[,] DistanceMatrix = BuildDistanceMatrix();
+        private static readonly int[,] DistanceMatrix = BuildDistanceMatrix();
 
         private static (double X, double Y)[] GenerateCities()
         {
@@ -29,16 +29,16 @@ namespace DarwinGA.Example
             return cities;
         }
 
-        private static double[,] BuildDistanceMatrix()
+        private static int[,] BuildDistanceMatrix()
         {
-            var dist = new double[CityCount, CityCount];
+            var dist = new int[CityCount, CityCount];
             for (int i = 0; i < CityCount; i++)
             {
                 for (int j = i + 1; j < CityCount; j++)
                 {
                     double dx = Cities[i].X - Cities[j].X;
                     double dy = Cities[i].Y - Cities[j].Y;
-                    double d = Math.Sqrt(dx * dx + dy * dy);
+                    int d = (int)Math.Sqrt(dx * dx + dy * dy) + 10;
                     dist[i, j] = d;
                     dist[j, i] = d;
                 }
@@ -54,24 +54,12 @@ namespace DarwinGA.Example
             return dist;
         }
 
-        public static void PrintCityMap()
-        {
-            Console.WriteLine($"\n{CityCount} cities in 2D space (coordinates):");
-            for (int i = 0; i < CityCount; i++)
-                Console.WriteLine($"  C{i,-2}: ({Cities[i].X,6:F1}, {Cities[i].Y,6:F1})");
-
-            double optimalDist = EvaluateRouteDistance(Enumerable.Range(0, CityCount).ToList());
-            double nnDist = EvaluateRouteDistance(ComputeNearestNeighborRoute());
-            Console.WriteLine($"\nKnown optimal route: 0 -> 1 -> 2 -> ... -> {CityCount - 1}");
-            Console.WriteLine($"(Starts at city 0 and ends at city {CityCount - 1}, visiting all cities once)");
-            Console.WriteLine($"Optimal distance: {optimalDist:F1} km (each consecutive edge = 1 km)");
-            Console.WriteLine($"Nearest-neighbor heuristic: {nnDist:F1} km");
-        }
+        
 
         public static void RunWithDiversity(GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + Diversity\n");
-            PrintCityMap();
+            
 
             int populationSize = settings.PopulationSize;
             var ga = CreateBaseGA(settings, enableDiversity: true);
@@ -92,7 +80,7 @@ namespace DarwinGA.Example
         public static void RunWithIslandModel(GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + Island model\n");
-            PrintCityMap();
+            
 
             int populationPerIsland = settings.PopulationSize;
             var islandGa = new IslandModelGeneticAlgorithm<BinaryEvolutional>(4)
@@ -124,14 +112,42 @@ namespace DarwinGA.Example
         public static void RunWithAICrosser(IAIProvider aiProvider, GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + AI Population Crosser\n");
-            PrintCityMap();
 
             int chromosomeSize = CityCount * BitsPerCity;
             int populationSize = settings.PopulationSize;
 
-            var citiesDesc = "";
-            for (int i = 0; i < CityCount; i++)
-                citiesDesc += $"  C{i}: ({Cities[i].X:F1}, {Cities[i].Y:F1})\n";
+            var matrixDesc = BuildDistanceMatrixDescription();
+
+            string systemMessage = @$"
+You are an elite genetic crossover operator for Traveling Salesman Problem (TSP) optimization.
+
+OBJECTIVE: Generate the next generation by crossing the best parents to minimize total route distance.
+
+INPUT FORMAT:
+- JSON array of binary chromosomes: [[1,0,1,...],[0,1,0,...],...]
+- Parents are SORTED by fitness (index 0 = best solution)
+- Each chromosome: {chromosomeSize} bits encoding 30 cities (5 bits per city)
+
+DISTANCE MATRIX (city[i] to city[j]):
+{matrixDesc}
+
+CROSSOVER STRATEGY:
+1. Preserve elite patterns from top performers (especially index 0-2)
+2. Apply intelligent recombination to exploit low-cost city transitions
+3. Maintain genetic diversity to avoid premature convergence
+4. Favor routes: starting near city 0, ending near city 29
+5. Prioritize offspring that reduce total path distance
+
+OUTPUT RULES (CRITICAL):
+1. Return ONLY raw JSON: [[0,1,...],[1,0,...],...]
+2. NO markdown, explanations, or extra text
+3. Exactly {settings.PopulationSize} individuals
+4. Each individual: exactly {chromosomeSize} genes (0 or 1 only)
+5. Format must be parseable by JsonSerializer.Deserialize<List<int[]>>()
+
+Generate optimized offspring now.
+";
+            aiProvider.SetSystemMessage(systemMessage);
 
            
             var aiCrosser = new AICrosser(aiProvider, populationSize);
@@ -146,7 +162,7 @@ namespace DarwinGA.Example
             {
                 var route = DecodePermutation(result.BestElement);
                 var dist = EvaluateRouteDistance(route);
-                Console.WriteLine($"Gen: {result.GenerationNum,-4} | Best: {result.BestFitness,6:F2} | Avg: {result.AverageFitness,6:F2} | Dist: {dist,8:F1} km");
+                Console.WriteLine($"Gen: {result.GenerationNum,-4} | BestFitness: {result.BestFitness,6:F2} | Dist: {dist,8:F1} km");
             };
 
             Console.WriteLine("Starting evolution with AI crossover...");
@@ -165,6 +181,26 @@ namespace DarwinGA.Example
             PrintFinalSummary(ga);
         }
 
+        private static string BuildDistanceMatrixDescription()
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < CityCount; i++)
+            {
+                sb.Append('[');
+                for (int j = 0; j < CityCount; j++)
+                {
+                    sb.Append(DistanceMatrix[i, j].ToString("F0", System.Globalization.CultureInfo.InvariantCulture));
+                    if (j < CityCount - 1)
+                        sb.Append(',');
+                }
+                sb.Append(']');
+                if (i < CityCount - 1)
+                    sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
         private static GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(GeneticAlgorithmSettings settings, bool enableDiversity)
         {
             int chromosomeSize = CityCount * BitsPerCity;
@@ -179,8 +215,8 @@ namespace DarwinGA.Example
                     return chr;
                 },
                 Fitness = EvaluateFitness,
-                EnableParallelEvaluation = true,
-                EnableParallelBreeding = true,
+                EnableParallelEvaluation = false,
+                EnableParallelBreeding = false,
                 MutationProbability = settings.MutationProbability,
                 CrossoverProbability = 0.85,
                 Mutation = new KFlipMutation(4),
@@ -198,24 +234,11 @@ namespace DarwinGA.Example
         private static double EvaluateFitness(BinaryEvolutional chromosome)
         {
             var route = DecodePermutation(chromosome);
+            if(route.Distinct().Count() != CityCount)
+                return 0; // Invalid route with duplicates
+
             double totalDistance = EvaluateRouteDistance(route);
-
-            double maxDist = 0;
-            for (int i = 0; i < CityCount; i++)
-                for (int j = 0; j < CityCount; j++)
-                    if (DistanceMatrix[i, j] > maxDist)
-                        maxDist = DistanceMatrix[i, j];
-            double worstCase = (CityCount - 1) * maxDist;
-
-            double penalty = 0.0;
-            if (route[0] != 0)
-                penalty += worstCase * 0.35;
-            if (route[^1] != CityCount - 1)
-                penalty += worstCase * 0.35;
-
-            double penalizedDistance = totalDistance + penalty;
-            double fitness = 100.0 * (1.0 - penalizedDistance / worstCase);
-            return Math.Clamp(fitness, 0.0, 100.0);
+            return (CityCount / totalDistance) * 100;
         }
 
         private static List<int> DecodePermutation(BinaryEvolutional chromosome)

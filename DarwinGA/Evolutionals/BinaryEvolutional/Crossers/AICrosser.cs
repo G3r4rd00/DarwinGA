@@ -65,22 +65,14 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             string jsonResponse = ExtractJson(aiResponse);
 
             // 6. Deserializar la respuesta
-            List<BinaryEvolutional> offspring = DeserializePopulation(jsonResponse, parents[0].Size);
+            List<BinaryEvolutional> offspring = DeserializePopulation(jsonResponse);
 
             return offspring;
         }
 
        
 
-        private string GetChromosomeString(BinaryEvolutional individual)
-        {
-            var genes = new StringBuilder();
-            for (int i = 0; i < individual.Size; i++)
-            {
-                genes.Append(individual.GetGen(i) ? "1" : "0");
-            }
-            return genes.ToString();
-        }
+       
 
         private string BuildPrompt(string populationJson, int expectedSize, string additionalContext = "")
         {
@@ -116,29 +108,18 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
 
         private string SerializePopulation(List<BinaryEvolutional> population)
         {
-            var populationData = new List<string>();
-            foreach (var individual in population)
-            {
-                populationData.Add(GetChromosomeString(individual));
-            }
-            return JsonSerializer.Serialize(populationData, new JsonSerializerOptions { WriteIndented = true });
+            return "[" + string.Join(",", population.Select(r => r.ToPrompt())) + "]";
         }
 
-        private List<BinaryEvolutional> DeserializePopulation(string json, int size)
+        private List<BinaryEvolutional> DeserializePopulation(string response)
         {
-            var populationData = JsonSerializer.Deserialize<List<string>>(json);
-            var offspring = new List<BinaryEvolutional>();
+            List<string> sPopulation = response.Trim('[', ']').Split(',').Select(r => r.Trim()).ToList();
+            List<BinaryEvolutional> offspring = new List<BinaryEvolutional>();
 
-            if (populationData == null)
-                return offspring;
-
-            foreach (var genes in populationData)
+            foreach (var sIndividual in sPopulation)
             {
-                var individual = new BinaryEvolutional(size);
-                for (int i = 0; i < Math.Min(genes.Length, size); i++)
-                {
-                    individual.SetGen(i, genes[i] == '1');
-                }
+                var individual = new BinaryEvolutional(sIndividual.Length);
+                individual = individual.FromPrompt(sIndividual);
                 offspring.Add(individual);
             }
 

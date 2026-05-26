@@ -26,6 +26,7 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
         public AICrosser(IAIProvider aiProvider, int populationSize)
         {
             _aiProvider = aiProvider ?? throw new ArgumentNullException(nameof(aiProvider));
+            
             _populationSize = populationSize;
         }
 
@@ -34,19 +35,16 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             if (parents == null || parents.Count == 0)
                 return new List<BinaryEvolutional>();
             
-            // 2. Serializar la población a JSON
+            // 1. Serializar la población a JSON
             string serializedParents = SerializePopulation(parents);
 
-            // 3. Crear el prompt para la IA con contexto evolutivo
-            string prompt = BuildPrompt(serializedParents);
-
-            // 4. Enviar a la IA y recibir respuesta
+            // 2. Enviar a la IA y recibir respuesta
             string aiResponse;
             try
             {
                 // La llamada es asíncrona, pero la interfaz es síncrona
                 // Usamos .Result para mantener compatibilidad
-                aiResponse = _aiProvider.SendPromptAsync(prompt).Result;
+                aiResponse = _aiProvider.SendPromptAsync(serializedParents).Result;
             }
             catch (Exception ex)
             {
@@ -55,26 +53,13 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
                 return parents.ToList();
             }
 
-            // 5. Deserializar la respuesta
+            //3. Deserializar la respuesta
             List<BinaryEvolutional> offspring = DeserializePopulation(aiResponse);
 
             return offspring;
         }
 
-        private string BuildPrompt(string populationJson)
-        {
-            var promptBuilder = new StringBuilder();
-
-            promptBuilder.AppendLine();
-            promptBuilder.AppendLine($"Population:");
-            promptBuilder.AppendLine(populationJson);
-
-            promptBuilder.AppendLine();
-            promptBuilder.AppendLine($"Create exactly {_populationSize} offspring chromosomes.");
-            promptBuilder.AppendLine("Return ONLY a JSON array of binary (0s and 1s), nothing else.");
-
-            return promptBuilder.ToString();
-        }
+        
 
        
 

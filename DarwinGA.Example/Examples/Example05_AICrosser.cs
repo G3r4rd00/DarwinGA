@@ -11,6 +11,11 @@ namespace DarwinGA.Example
 {
     internal static class Example05_AICrosser
     {
+        public static void Run(IAIProvider aiProvider, GeneticAlgorithmSettings settings)
+        {
+            Run(aiProvider);
+        }
+
         // Example 5
         // 0/1 Knapsack problem using AI-based Population Crosser with ChatGPT
         // 0/1 Knapsack: choose items to maximize value without exceeding capacity

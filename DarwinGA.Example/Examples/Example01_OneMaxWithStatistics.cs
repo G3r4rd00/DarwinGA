@@ -4,6 +4,11 @@ namespace DarwinGA.Example
 {
     internal static class Example01_OneMaxWithStatistics
     {
+        public static void Run(GeneticAlgorithmSettings settings)
+        {
+            Run();
+        }
+
         // Example 1
         // 0/1 Knapsack (binary chromosome): maximize total value without exceeding capacity.
         // Fitness uses a penalty when overweight.

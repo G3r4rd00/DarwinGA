@@ -221,7 +221,7 @@ Generate optimized offspring now.
                 CrossoverProbability = 0.85,
                 Mutation = new KFlipMutation(4),
                 Cross = new UniformCross(0.5),
-                Selection = new TournamentSelection(8),
+                Selection = new EliteSelecction(settings.PopulationSize*0.1),
                 Termination = new FitnessThresholdTermination(100),
                 OnNewGeneration = _ => { }
             };

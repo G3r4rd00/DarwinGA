@@ -6,8 +6,7 @@ using System.Text.Json;
 var appConfiguration = LoadAppConfiguration();
 var gaSettings = GeneticAlgorithmSettings.FromConfiguration(appConfiguration);
 
-var directDeepSeekProvider = CreateDeepSeekProviderWithModel(appConfiguration, "deepseek-chat");
-Example08_TravelingSalesman.RunWithAICrosser(directDeepSeekProvider, gaSettings);
+RunGridWalkerMenu(gaSettings, appConfiguration);
 return;
 
 

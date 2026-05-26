@@ -15,7 +15,7 @@ namespace DarwinGA.Example
     {
         private const int CityCount = 30;
         private const int BitsPerCity = 5;
-        private const int MaxCitiesInRoute = 30;
+        
 
         private static readonly (double X, double Y)[] Cities = GenerateCities();
         private static readonly double[,] DistanceMatrix = BuildDistanceMatrix();
@@ -126,7 +126,7 @@ namespace DarwinGA.Example
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + AI Population Crosser\n");
             PrintCityMap();
 
-            int chromosomeSize = MaxCitiesInRoute * BitsPerCity;
+            int chromosomeSize = CityCount * BitsPerCity;
             int populationSize = settings.PopulationSize;
 
             var citiesDesc = "";
@@ -139,7 +139,7 @@ PROBLEM CONTEXT:
 - {CityCount} cities with 2D coordinates:
 {citiesDesc}
 - Chromosome length: {chromosomeSize} bits.
-- Encoding: the chromosome is split into {MaxCitiesInRoute} blocks of {BitsPerCity} bits; each block decodes to one city index in binary (0-31).
+- Encoding: the chromosome is split into {CityCount} blocks of {BitsPerCity} bits; each block decodes to one city index in binary (0-31).
 - Valid city indices are 0 to {CityCount - 1}. Values >= {CityCount} are invalid and are ignored by the decoder.
 - The decoded route is built by keeping the first occurrence of each valid city and then appending any missing cities.
 - The fitness function rewards shorter routes and penalizes routes whose decoded permutation does not start at city 0 or does not end at city {CityCount - 1}.
@@ -201,7 +201,7 @@ SUCCESS CRITERION:
 
         private static GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(GeneticAlgorithmSettings settings, bool enableDiversity)
         {
-            int chromosomeSize = MaxCitiesInRoute * BitsPerCity;
+            int chromosomeSize = CityCount * BitsPerCity;
 
             var ga = new GeneticAlgorithm<BinaryEvolutional>
             {
@@ -260,7 +260,7 @@ SUCCESS CRITERION:
         private static List<int> DecodePermutation(BinaryEvolutional chromosome)
         {
             var rawCities = new List<int>();
-            for (int i = 0; i < MaxCitiesInRoute; i++)
+            for (int i = 0; i < CityCount; i++)
             {
                 int baseIndex = i * BitsPerCity;
                 int city = 0;

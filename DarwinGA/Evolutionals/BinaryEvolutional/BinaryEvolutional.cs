@@ -8,12 +8,17 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional
     public class BinaryEvolutional : IPromptteableEvolutional<BinaryEvolutional> 
     {
         
-        private bool[] _genes = Array.Empty<bool>();
+        public bool[] _genes = Array.Empty<bool>();
 
         public int Size => _genes.Length;
 
         public BinaryEvolutional(int size) { 
             _genes = new bool[size];
+        }
+
+        public BinaryEvolutional(bool[] genes)
+        {
+            _genes = genes;
         }
 
 
@@ -30,13 +35,13 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional
 
         public string ToPrompt()
         {
-            return "[" + string.Join(",", _genes);
+            return JsonSerializer.Serialize(_genes);
         }
 
         public BinaryEvolutional FromPrompt(string s)
         {
             BinaryEvolutional e = new BinaryEvolutional(Size);
-            e._genes =  s.Trim('[', ']').Split(',').Select(r => Convert.ToBoolean(r)).ToArray();
+            e._genes = JsonSerializer.Deserialize<bool[]>(s);
             return e;
         }
     }

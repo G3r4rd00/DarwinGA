@@ -17,10 +17,7 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
     public class AICrosser : IPopulationCrosser<BinaryEvolutional>
     {
         private readonly IAIProvider _aiProvider;
-        private int _generationCount = 0;
-        private double _lastBestFitness = 0;
-        private double _lastAverageFitness = 0;
-        private int _populationSize = 0;
+        private int _populationSize;
 
         /// <summary>
         /// Creates a new AI-based crossover operator.
@@ -36,15 +33,12 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
         {
             if (parents == null || parents.Count == 0)
                 return new List<BinaryEvolutional>();
-
-            _generationCount++;
-
             
             // 2. Serializar la población a JSON
             string serializedParents = SerializePopulation(parents);
 
             // 3. Crear el prompt para la IA con contexto evolutivo
-            string prompt = BuildPrompt(serializedParents, _populationSize);
+            string prompt = BuildPrompt(serializedParents);
 
             // 4. Enviar a la IA y recibir respuesta
             string aiResponse;
@@ -61,65 +55,41 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
                 return parents.ToList();
             }
 
-            // 5. Extraer el JSON de la respuesta (puede venir con texto adicional)
-            string jsonResponse = ExtractJson(aiResponse);
-
-            // 6. Deserializar la respuesta
-            List<BinaryEvolutional> offspring = DeserializePopulation(jsonResponse);
+            // 5. Deserializar la respuesta
+            List<BinaryEvolutional> offspring = DeserializePopulation(aiResponse);
 
             return offspring;
         }
 
-       
-
-       
-
-        private string BuildPrompt(string populationJson, int expectedSize, string additionalContext = "")
+        private string BuildPrompt(string populationJson)
         {
             var promptBuilder = new StringBuilder();
 
-            promptBuilder.AppendLine($"Generation {_generationCount}:");
-            promptBuilder.AppendLine($"Best fitness: {_lastBestFitness:F2} | Average fitness: {_lastAverageFitness:F2}");
-
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine($"Input population (with fitness scores):");
+            promptBuilder.AppendLine($"Population:");
             promptBuilder.AppendLine(populationJson);
 
             promptBuilder.AppendLine();
-            promptBuilder.AppendLine($"Create exactly {expectedSize} offspring chromosomes.");
-            promptBuilder.AppendLine("Return ONLY a JSON array of binary strings (0s and 1s), nothing else.");
+            promptBuilder.AppendLine($"Create exactly {_populationSize} offspring chromosomes.");
+            promptBuilder.AppendLine("Return ONLY a JSON array of binary (0s and 1s), nothing else.");
 
             return promptBuilder.ToString();
         }
 
-        private string ExtractJson(string response)
-        {
-            // Intentar extraer JSON si viene con texto adicional
-            int jsonStart = response.IndexOf('[');
-            int jsonEnd = response.LastIndexOf(']');
-
-            if (jsonStart >= 0 && jsonEnd >= 0 && jsonEnd > jsonStart)
-            {
-                return response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-            }
-
-            return response;
-        }
+       
 
         private string SerializePopulation(List<BinaryEvolutional> population)
         {
-            return "[" + string.Join(",", population.Select(r => r.ToPrompt())) + "]";
+            return JsonSerializer.Serialize(population.Select(r => r._genes.Select(g => g ? 1 : 0)));
         }
 
         private List<BinaryEvolutional> DeserializePopulation(string response)
         {
-            List<string> sPopulation = response.Trim('[', ']').Split(',').Select(r => r.Trim()).ToList();
+            List<int[]> boolArrays = JsonSerializer.Deserialize<List<int[]>>(response);
             List<BinaryEvolutional> offspring = new List<BinaryEvolutional>();
-
-            foreach (var sIndividual in sPopulation)
+            foreach (var sIndividual in boolArrays)
             {
-                var individual = new BinaryEvolutional(sIndividual.Length);
-                individual = individual.FromPrompt(sIndividual);
+                var individual = new BinaryEvolutional(sIndividual.Select(b => b == 1).ToArray());
                 offspring.Add(individual);
             }
 

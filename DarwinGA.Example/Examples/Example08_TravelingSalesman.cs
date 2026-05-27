@@ -11,8 +11,8 @@ namespace DarwinGA.Example
 {
     internal static class Example08_TravelingSalesman
     {
-        private const int BitsPerCity = 3;
-        private const int CityCount = 8;
+        private const int BitsPerCity = 4;
+        private const int CityCount = 16;
 
 
         private static readonly int[,] DistanceMatrix = BuildDistanceMatrix();
@@ -67,9 +67,9 @@ You are an elite genetic crossover operator for Traveling Salesman Problem (TSP)
 OBJECTIVE: Generate the next generation by crossing the best parents to minimize total route distance.
 
 INPUT FORMAT:
-- JSON array of binary chromosomes: [[1,0,1,...],[0,1,0,...],...]
+- JSON array of routes (city indices): [[0,3,2,...],[1,4,0,...],...]
 - Parents are SORTED by fitness (index 0 = best solution)
-- Each chromosome: {chromosomeSize} bits encoding 30 cities (5 bits per city)
+- Each route: exactly {CityCount} city indices (valid range: 0 to {CityCount - 1})
 
 DISTANCE MATRIX (city[i] to city[j]):
 {matrixDesc}
@@ -78,22 +78,35 @@ CROSSOVER STRATEGY:
 1. Preserve elite patterns from top performers (especially index 0-2)
 2. Apply intelligent recombination to exploit low-cost city transitions
 3. Maintain genetic diversity to avoid premature convergence
-4. Favor routes: starting near city 0, ending near city 29
+4. Favor routes with low-cost transitions across all cities (0 to {CityCount - 1})
 5. Prioritize offspring that reduce total path distance
 
 OUTPUT RULES (CRITICAL):
-1. Return ONLY raw JSON: [[0,1,...],[1,0,...],...]
+1. Return ONLY raw JSON array of city-index routes: [[4,1,5,...],[5,2,0,...],...]
 2. NO markdown, explanations, or extra text
 3. Exactly {settings.PopulationSize} individuals
-4. Each individual: exactly {chromosomeSize} genes (0 or 1 only)
+4. Each individual: exactly {CityCount} city indices (integers in range 0 to {CityCount - 1})
 5. Format must be parseable by JsonSerializer.Deserialize<List<int[]>>()
+6. If you find a valid or better solution route, include that exact route as one of the returned individuals.
 
 Generate optimized offspring now.
 ";
-            aiProvider.SetSystemMessage(systemMessage);
+            
 
-           
-            var aiCrosser = new AICrosser(aiProvider, populationSize);
+
+            var aiCrosser = new AICrosser(
+                aiProvider,
+                populationSize,
+                parents => {
+                    var json = System.Text.Json.JsonSerializer.Serialize(parents.Select(Decode).Select(route => route.ToArray()).ToList());
+                    return json;
+                },
+                json =>
+                {
+                    var parsed = System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json) ?? new List<int[]>();
+                    return parsed.Select(route => Encode(route)).ToList();
+                }, 
+                systemMessage);
 
             var ga = CreateBaseGA(settings);
             ga.PopulationCrosser = aiCrosser;
@@ -194,6 +207,23 @@ Generate optimized offspring now.
                 cities.Add(city);
             }
             return cities;
+        }
+
+        private static BinaryEvolutional Encode(int[] route)
+        {
+            var genes = new bool[CityCount * BitsPerCity];
+            for (int i = 0; i < CityCount; i++)
+            {
+                int city = i < route.Length ? route[i] : 0;
+                city = Math.Clamp(city, 0, CityCount - 1);
+                for (int b = 0; b < BitsPerCity; b++)
+                {
+                    int bitMask = 1 << (BitsPerCity - 1 - b);
+                    genes[(i * BitsPerCity) + b] = (city & bitMask) != 0;
+                }
+            }
+
+            return new BinaryEvolutional(genes);
         }
 
         private static double EvaluateRouteDistance(List<int> route)

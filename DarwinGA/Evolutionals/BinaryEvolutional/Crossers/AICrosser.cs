@@ -17,14 +17,28 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
     public class AICrosser : IPopulationCrosser<BinaryEvolutional>
     {
         private readonly IAIProvider _aiProvider;
-        
+        private readonly Func<List<BinaryEvolutional>,string> SerializePopulation;
+        private readonly Func<string, List<BinaryEvolutional>> DeserializePopulation;
+
         /// <summary>
         /// Creates a new AI-based crossover operator.
         /// </summary>
         /// <param name="aiProvider">The AI provider to use for crossover operations.</param>
-        public AICrosser(IAIProvider aiProvider, int populationSize)
+        /// <param name="populationSize">Configured population size for the crossover process.</param>
+        /// <param name="serializePopulation">Function used to serialize parents before sending them to the AI.</param>
+        /// <param name="deserializePopulation">Function used to deserialize AI response into offspring.</param>
+        public AICrosser(
+            IAIProvider aiProvider,
+            int populationSize,
+            Func<List<BinaryEvolutional>, string> serializePopulation,
+            Func<string, List<BinaryEvolutional>> deserializePopulation,
+            string systemMessage)
         {
             _aiProvider = aiProvider ?? throw new ArgumentNullException(nameof(aiProvider));
+            SerializePopulation = serializePopulation ?? throw new ArgumentNullException(nameof(serializePopulation));
+            DeserializePopulation = deserializePopulation ?? throw new ArgumentNullException(nameof(deserializePopulation));
+            systemMessage = systemMessage ?? throw new ArgumentNullException(nameof(systemMessage));
+            _aiProvider.SetSystemMessage(systemMessage);
         }
 
         public List<BinaryEvolutional> CrossPopulation(List<BinaryEvolutional> parents)
@@ -54,28 +68,6 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             List<BinaryEvolutional> offspring = DeserializePopulation(aiResponse);
 
             return offspring;
-        }
-
-        
-
-       
-
-        private string SerializePopulation(List<BinaryEvolutional> population)
-        {
-            return JsonSerializer.Serialize(population.Select(r => r._genes.Select(g => g ? 1 : 0)));
-        }
-
-        private List<BinaryEvolutional> DeserializePopulation(string response)
-        {
-            List<int[]> boolArrays = JsonSerializer.Deserialize<List<int[]>>(response);
-            List<BinaryEvolutional> offspring = new List<BinaryEvolutional>();
-            foreach (var sIndividual in boolArrays)
-            {
-                var individual = new BinaryEvolutional(sIndividual.Select(b => b == 1).ToArray());
-                offspring.Add(individual);
-            }
-
-            return offspring;
-        }
+        }    
     }
 }

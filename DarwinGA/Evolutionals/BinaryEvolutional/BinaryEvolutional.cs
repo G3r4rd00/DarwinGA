@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace DarwinGA.Evolutionals.BinaryEvolutional
 {
-    public class BinaryEvolutional : IPromptteableEvolutional<BinaryEvolutional> 
+    public class BinaryEvolutional : IGAEvolutional<BinaryEvolutional> 
     {
         
         public bool[] _genes = Array.Empty<bool>();
@@ -45,13 +45,13 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional
 
         public string ToPrompt()
         {
-            return JsonSerializer.Serialize(_genes);
+            return "[" + string.Join(",", _genes.Select(r => r ? 1 : 0)) + "]";
         }
 
         public BinaryEvolutional FromPrompt(string s)
         {
             BinaryEvolutional e = new BinaryEvolutional(Size);
-            e._genes = JsonSerializer.Deserialize<bool[]>(s);
+            e._genes = s.Trim('[', ']').Split(',').Select(r => r.Trim() == "1").ToArray();
             return e;
         }
     }

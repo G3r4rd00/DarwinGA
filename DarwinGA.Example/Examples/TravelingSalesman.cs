@@ -55,14 +55,25 @@ namespace DarwinGA.Example
 
         public static void RunWithAICrosser(IAIProvider aiProvider, GeneticAlgorithmSettings settings)
         {
-            Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + AI Population Crosser\n");
+            RunWithAIOptions(aiProvider, settings, useAIPopulationCreator: true, useAICrossover: true);
+        }
+
+        public static void RunWithAIOptions(IAIProvider aiProvider, GeneticAlgorithmSettings settings, bool useAIPopulationCreator, bool useAICrossover)
+        {
+            Console.WriteLine($"[Example 8] Traveling Salesman (30 cities) | AI Initial Population: {(useAIPopulationCreator ? "ON" : "OFF")} | AI Crossover: {(useAICrossover ? "ON" : "OFF")}\n");
+
             _aiProvider = aiProvider;
-            int chromosomeSize = CityCount * BitsPerCity;
             int populationSize = settings.PopulationSize;
+            var ga = CreateBaseGA(settings);
 
-            var matrixDesc = BuildDistanceMatrixDescription();
+            if (useAIPopulationCreator)
+                ga.PopulationCreator = IAPopulationCreator;
 
-            string systemMessage = @$"
+            if (useAICrossover)
+            {
+                var matrixDesc = BuildDistanceMatrixDescription();
+
+                string systemMessage = @$"
 You are an elite genetic crossover operator for Traveling Salesman Problem (TSP) optimization.
 
 OBJECTIVE: Generate the next generation by crossing the best parents to minimize total route distance.
@@ -95,28 +106,29 @@ OUTPUT RULES (CRITICAL):
 
 Generate optimized offspring now.
 ";
-            
-            var aiCrosser = new AICrosser(
-                aiProvider,
-                populationSize,
-                parents => {
-                    var json = System.Text.Json.JsonSerializer.Serialize(parents.Select(Decode).Select(route => route.ToArray()).ToList());
-                    return json;
-                },
-                json =>
-                {
-                    var parsed = System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json) ?? new List<int[]>();
-                    return parsed.Select(route => Encode(route)).ToList();
-                }, 
-                systemMessage);
 
-            var ga = CreateBaseGA(settings);
-            ga.PopulationCrosser = aiCrosser;
-            ga.PopulationCreator = IAPopulationCreator;
-            ga.Cross = null;
-            
-            Console.WriteLine("Starting evolution with AI crossover...");
-            Console.WriteLine("(This will make API calls to OpenAI-compatible provider)\n");
+                var aiCrosser = new AICrosser(
+                    aiProvider,
+                    populationSize,
+                    parents =>
+                    {
+                        var json = System.Text.Json.JsonSerializer.Serialize(parents.Select(Decode).Select(route => route.ToArray()).ToList());
+                        return json;
+                    },
+                    json =>
+                    {
+                        var parsed = System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json) ?? new List<int[]>();
+                        return parsed.Select(route => Encode(route)).ToList();
+                    },
+                    systemMessage);
+
+                ga.PopulationCrosser = aiCrosser;
+                ga.Cross = null;
+            }
+
+            Console.WriteLine("Starting evolution...");
+            if (useAIPopulationCreator || useAICrossover)
+                Console.WriteLine("(This will make API calls to OpenAI-compatible provider)\n");
 
             try
             {
@@ -127,8 +139,6 @@ Generate optimized offspring now.
                 Console.WriteLine($"\nERROR during evolution: {ex.Message}");
                 return;
             }
-
-            
         }
 
         private static string BuildDistanceMatrixDescription()

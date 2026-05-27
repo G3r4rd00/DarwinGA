@@ -57,28 +57,29 @@ static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguratio
     Console.WriteLine("DarwinGA - Grid walker pathfinding");
     Console.WriteLine("================================\n");
 
-    Console.WriteLine("Choose an algorithm:");
-    Console.WriteLine("  1) Genetic Algorithm");
-    Console.WriteLine("  2) Genetic Algorithm + AI Population Crosser\n");
+    bool useAIPopulation = AskYesNo("Use AI for initial population creation? (y/N): ", false);
+    bool useAICrossover = AskYesNo("Use AI for crossover? (y/N): ", false);
 
-    Console.Write("Option (1-2, default 1): ");
-    var option = Console.ReadLine()?.Trim();
-    if (string.IsNullOrWhiteSpace(option))
-        option = "1";
-
-    switch (option)
+    if (!useAIPopulation && !useAICrossover)
     {
-        case "1":
-            TravelingSalesman.RunWithAG(gaSettings);
-            break;
-        case "2":
-            var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
-            TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
-            break;
-        default:
-            Console.WriteLine("Invalid option.");
-            break;
+        TravelingSalesman.RunWithAG(gaSettings);
+        return;
     }
+
+    var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
+    TravelingSalesman.RunWithAIOptions(aiProvider, gaSettings, useAIPopulation, useAICrossover);
+}
+
+static bool AskYesNo(string prompt, bool defaultValue)
+{
+    Console.Write(prompt);
+    var input = Console.ReadLine()?.Trim();
+
+    if (string.IsNullOrWhiteSpace(input))
+        return defaultValue;
+
+    input = input.ToLowerInvariant();
+    return input == "y" || input == "yes" || input == "1";
 }
 
 

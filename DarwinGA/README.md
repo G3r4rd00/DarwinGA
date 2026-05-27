@@ -11,6 +11,8 @@
 **DarwinGA** is a modular, extensible genetic algorithm framework for .NET 8.  
 Define your problem. Let evolution find the solution.
 
+> 🚀 **Key Differentiator:** DarwinGA supports **AI-driven initial population creation** and **AI-driven population crossover**, enabling hybrid evolutionary + LLM optimization workflows out of the box.
+
 **Author / Contact**
 
 - Email: `gerardotous@gmail.com`
@@ -34,6 +36,21 @@ Instead of coding a solver, you describe:
 
 The engine evolves a population of candidate solutions across generations until it converges on the best one.
 
+Unlike most .NET GA libraries, DarwinGA can delegate both **generation-0 seeding** and **population-level crossover** to AI providers (OpenAI-compatible), combining classic genetic operators with intelligent guidance.
+
+---
+
+## 🤖 Why DarwinGA Is Different
+
+Most GA frameworks focus only on traditional operators. DarwinGA adds an **AI-native evolution flow**:
+
+- **AI Initial Population Seeding** via `PopulationCreator`
+- **AI Population Crossover** via `IPopulationCrosser` / `AICrosser`
+- Works with OpenAI-compatible providers (OpenAI, DeepSeek, LM Studio)
+- Can be enabled independently (only seeding, only crossover, or both)
+
+This enables faster convergence in many complex search spaces by combining exploration from GA with structured guidance from LLMs.
+
 ---
 
 ## ✨ Features at a Glance
@@ -54,6 +71,8 @@ The engine evolves a population of candidate solutions across generations until 
 | 📊 **Generation statistics** (avg/min/max/stddev + diversity index) | ✅ | ❌ |
 | 🏝️ **Island Model** (multi-population + migration) | ✅ | ❌ |
 | ♻️ **Reinsertion** strategies (carry elites to next generation) | ✅ | ❌ |
+| 🤖 **AI initial population seeding** (`PopulationCreator`) | ✅ | ❌ |
+| 🤖 **AI population crossover** (`IPopulationCrosser`) | ✅ | ❌ |
 | ✋ **CancellationToken** support (stop runs safely) | ✅ | ❌ |
 | 🔌 Extensible via interfaces | ✅ | Partial |
 | 🪶 Lightweight — minimal dependencies | ✅ | Varies |
@@ -125,7 +144,9 @@ using DarwinGA.Terminations;
 
 var ga = new GeneticAlgorithm<PriceSolution>
 {
-    NewItem = () => new PriceSolution { Price = MyRandom.NextDouble() * 100 },
+    PopulationCreator = size => Enumerable.Range(0, size)
+        .Select(_ => new PriceSolution { Price = MyRandom.NextDouble() * 100 })
+        .ToList(),
 
     Fitness = solution =>
     {
@@ -150,6 +171,59 @@ ga.Run(populationSize: 100);
 ```
 
 That's it. The algorithm handles the rest.
+
+---
+
+## 🤖 AI: Initial Population + Population Crossover
+
+DarwinGA permite integrar IA en dos puntos clave del ciclo evolutivo:
+
+1. **Creación de población inicial por IA**
+   - Asigna `PopulationCreator` para generar la generación 0 con un proveedor IA.
+2. **Crossover de población por IA**
+   - Asigna `PopulationCrosser` (por ejemplo `AICrosser`) para generar descendencia a nivel de población.
+
+Ejemplo conceptual:
+
+```csharp
+using DarwinGA;
+using DarwinGA.AI;
+using DarwinGA.Evolutionals.BinaryEvolutional;
+using DarwinGA.Evolutionals.BinaryEvolutional.Crossers;
+
+var ga = new GeneticAlgorithm<BinaryEvolutional>
+{
+    PopulationCreator = size =>
+    {
+        // Crear población inicial (puede ser IA + fallback aleatorio)
+        return CreateInitialPopulationWithAI(size);
+    },
+
+    PopulationCrosser = new AICrosser(
+        aiProvider,
+        populationSize,
+        serializePopulation,
+        deserializePopulation,
+        systemMessage: "You are an expert GA crossover operator"
+    ),
+
+    // Si usas PopulationCrosser para el cruce principal, Cross puede quedar en null
+    Cross = null,
+
+    Fitness = EvaluateFitness,
+    Mutation = mutation,
+    Selection = selection,
+    Termination = termination,
+    OnNewGeneration = _ => { }
+};
+
+ga.Run(populationSize);
+```
+
+En `DarwinGA.Example`, este flujo ya está integrado para activar de forma independiente:
+
+- **Use AI for initial population creation? (y/N)**
+- **Use AI for crossover? (y/N)**
 
 ---
 
@@ -417,12 +491,17 @@ int capacity = 30;
 
 var ga = new GeneticAlgorithm<BinaryEvolutional>()
 {
-    NewItem = () =>
+    PopulationCreator = size =>
     {
-        var chr = new BinaryEvolutional(items.Length);
-        for (int i = 0; i < items.Length; i++)
-            chr.SetGen(i, MyRandom.NextDouble() < 0.5);
-        return chr;
+        var population = new List<BinaryEvolutional>(size);
+        for (int p = 0; p < size; p++)
+        {
+            var chr = new BinaryEvolutional(items.Length);
+            for (int i = 0; i < items.Length; i++)
+                chr.SetGen(i, MyRandom.NextDouble() < 0.5);
+            population.Add(chr);
+        }
+        return population;
     },
 
     Fitness = individual =>
@@ -478,10 +557,11 @@ ga.Run(populationSize: 120);
 
 | Property | Type | Description |
 |---|---|---|
-| `NewItem` | `Func<T>` | Factory that creates a new random individual. **Required.** |
+| `PopulationCreator` | `Func<int, List<T>>` | Creates the full initial population (can be random, heuristic, or AI-generated). **Required.** |
 | `Fitness` | `Func<T, double>` | Evaluates how good a solution is. Higher = better. **Required.** |
 | `Mutation` | `IMutation<T>` | Mutation operator. **Required.** |
-| `Cross` | `ICross<T>` | Crossover operator. **Required.** |
+| `Cross` | `ICross<T>?` | Pairwise crossover operator. **Required unless `PopulationCrosser` is configured.** |
+| `PopulationCrosser` | `IPopulationCrosser<T>?` | Optional population-level crossover strategy (ideal for AI-guided crossover). |
 | `Selection` | `ISelection` | Parent selection strategy. **Required.** |
 | `Termination` | `ITermination` | When to stop evolving. **Required.** |
 | `OnNewGeneration` | `Action<GenerationResult<T>>` | Callback invoked after each generation. **Required.** |
@@ -523,6 +603,7 @@ ga.Run(populationSize: 120);
 | `IGAEvolutional<T>` | Marker for any evolvable type (your chromosome). |
 | `IMutation<T>` | `void Apply(T evo, double mutationProb)` — mutate an individual. |
 | `ICross<T>` | `T Apply(T a, T b)` — produce a child from two parents. |
+| `IPopulationCrosser<T>` | `List<T> CrossPopulation(List<T> parents)` — generate offspring from the selected parent population. |
 | `ISelection` | `IEnumerable<FitnessResult> Select(...)` — choose parents from the population. |
 | `ITermination` | `bool ShouldTerminate(GenerationResultBase result)` — stop condition. |
 | `IDiversityMetric<T>` | `double Distance(T a, T b)` — measure distance between individuals. |

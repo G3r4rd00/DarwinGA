@@ -12,8 +12,8 @@ namespace DarwinGA.Example
     internal static class TravelingSalesman
     {
         private static IAIProvider _aiProvider;
-        private const int BitsPerCity = 5;
-        private const int CityCount = 32;
+        private const int BitsPerCity = 4;
+        private const int CityCount = 16;
 
 
         private static readonly int[,] DistanceMatrix = BuildDistanceMatrix();
@@ -25,18 +25,26 @@ namespace DarwinGA.Example
             {
                 for (int j = i + 1; j < CityCount; j++)
                 {
-                    int d = i + j;
+                    int d = MyRandom.NextInt(20, 120);
                     dist[i, j] = d;
                     dist[j, i] = d;
                 }
             }
 
-            for (int i = 0; i < CityCount - 1; i++)
+            var shortestRoute = Enumerable.Range(0, CityCount)
+                .OrderBy(_ => MyRandom.NextInt(int.MaxValue))
+                .ToArray();
+
+            for (int i = 0; i < shortestRoute.Length - 1; i++)
             {
-                dist[i, i + 1] = 1;
-                dist[i + 1, i] = 1;
-                dist[i, i] = 1000;
+                int from = shortestRoute[i];
+                int to = shortestRoute[i + 1];
+                dist[from, to] = 1;
+                dist[to, from] = 1;
             }
+
+            for (int i = 0; i < CityCount; i++)
+                dist[i, i] = 1000;
 
             return dist;
         }
@@ -175,6 +183,7 @@ You are an elite initializer for a genetic algorithm solving the Traveling Sales
 
 OBJECTIVE:
 Generate a high-quality INITIAL population seed (generation 0) that helps convergence to low-distance routes.
+If you can infer or construct the shortest valid route from the distance matrix, include it in the returned routes.
 
 TASK CONTEXT:
 - Number of cities: {CityCount}
@@ -208,7 +217,7 @@ Return the initial population now.
             var response = _aiProvider.SendPromptAsync("Generate the initial population now. Return only pure JSON array with no markdown fences, no ```json, and no extra text. IMPORTANT: Close the JSON array properly with ']' even if you cannot fit all routes.").Result;
             var parsedRoutes = ParseRoutesFromAiResponse(response);
 
-            // If AI returned fewer routes than requested or failed, fill the rest randomly
+            // If AI returned fewer routes than requested, fill the rest randomly
             if (parsedRoutes.Count < populationSize)
             {
                 var remaining = populationSize - parsedRoutes.Count;
@@ -222,25 +231,21 @@ Return the initial population now.
         private static List<int[]> ParseRoutesFromAiResponse(string response)
         {
             if (string.IsNullOrWhiteSpace(response))
-                return new List<int[]>();
+                throw new InvalidOperationException("AI returned an empty response for initial population.");
 
             var json = ExtractJsonArray(response);
 
-            // Validate JSON bracket balance before deserializing
             if (!HasBalancedBrackets(json))
-            {
-                Console.WriteLine("[WARNING] AI response contains unbalanced JSON brackets - falling back to random population");
-                return new List<int[]>();
-            }
+                throw new InvalidOperationException("AI returned malformed JSON (unbalanced brackets) for initial population.");
 
             try
             {
-                return System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json) ?? new List<int[]>();
+                return System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json)
+                    ?? throw new InvalidOperationException("AI returned null JSON payload for initial population.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WARNING] JSON deserialization failed: {ex.Message}");
-                return new List<int[]>();
+                throw new InvalidOperationException("AI returned JSON that could not be parsed for initial population.", ex);
             }
         }
 
@@ -318,6 +323,7 @@ Return the initial population now.
                     var route = Decode(result.BestElement);
                     var dist = EvaluateRouteDistance(route);
                     Console.WriteLine($"Gen: {result.GenerationNum} | BestFitness: {result.BestFitness} | BestDistance: {dist}");
+                    System.Threading.Thread.Sleep(500); // Slow down for better readability
                 }
             };
 

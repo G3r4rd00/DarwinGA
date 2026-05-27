@@ -64,7 +64,9 @@ namespace DarwinGA.Tests
         {
             var ga = new GeneticAlgorithm<BinaryEvolutional>()
             {
-                NewItem = () => new BinaryEvolutional(4),
+                PopulationCreator = size => Enumerable.Range(0, size)
+                    .Select(_ => new BinaryEvolutional(4))
+                    .ToList(),
                 Fitness = (chr) => 1.0,
                 OnNewGeneration = (res) => { },
                 EnableParallelBreeding = parallel,

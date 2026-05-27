@@ -270,7 +270,7 @@ public partial class Form1 : Form
 
         var ga = new GeneticAlgorithm<BinaryEvolutional>
         {
-            NewItem = newItem,
+            PopulationCreator = size => Enumerable.Range(0, size).Select(_ => newItem()).ToList(),
             Fitness = fitness,
             MutationProbability = s.MutationProbability,
             Mutation = CreateMutation(s.MutationType),

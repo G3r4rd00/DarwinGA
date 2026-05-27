@@ -13,7 +13,9 @@ namespace DarwinGA.Tests
         {
             return new GeneticAlgorithm<BinaryEvolutional>()
             {
-                NewItem = () => new BinaryEvolutional(10),
+                PopulationCreator = size => Enumerable.Range(0, size)
+                    .Select(_ => new BinaryEvolutional(10))
+                    .ToList(),
                 Cross = new UniformCross(),
                 Mutation = new RandomMutation(),
                 Fitness = (chr) => 1.0,

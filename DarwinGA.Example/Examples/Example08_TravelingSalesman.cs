@@ -81,13 +81,16 @@ CROSSOVER STRATEGY:
 4. Favor routes with low-cost transitions across all cities (0 to {CityCount - 1})
 5. Prioritize offspring that reduce total path distance
 
+PRIORITY DIRECTIVE (MANDATORY, HIGHEST PRIORITY):
+If you find a valid or better solution route, include that exact route as one of the returned individuals.
+This directive applies regardless of parent composition.
+
 OUTPUT RULES (CRITICAL):
 1. Return ONLY raw JSON array of city-index routes: [[4,1,5,...],[5,2,0,...],...]
 2. NO markdown, explanations, or extra text
 3. Exactly {settings.PopulationSize} individuals
 4. Each individual: exactly {CityCount} city indices (integers in range 0 to {CityCount - 1})
 5. Format must be parseable by JsonSerializer.Deserialize<List<int[]>>()
-6. If you find a valid or better solution route, include that exact route as one of the returned individuals.
 
 Generate optimized offspring now.
 ";

@@ -12,8 +12,8 @@ namespace DarwinGA.Example
     internal static class TravelingSalesman
     {
         private static IAIProvider _aiProvider;
-        private const int BitsPerCity = 4;
-        private const int CityCount = 16;
+        private const int BitsPerCity = 5;
+        private const int CityCount = 32;
 
 
         private static readonly int[,] DistanceMatrix = BuildDistanceMatrix();
@@ -183,7 +183,8 @@ You are an elite initializer for a genetic algorithm solving the Traveling Sales
 
 OBJECTIVE:
 Generate a high-quality INITIAL population seed (generation 0) that helps convergence to low-distance routes.
-If you can infer or construct the shortest valid route from the distance matrix, include it in the returned routes.
+Find and include the shortest valid route you can infer from the distance matrix.
+Also include several additional routes that are still very short (near-optimal), so crossover operations are more effective.
 
 TASK CONTEXT:
 - Number of cities: {CityCount}
@@ -196,9 +197,11 @@ DISTANCE MATRIX (city[i] to city[j]):
 
 CONSTRUCTION STRATEGY:
 1. Produce valid permutations: each city appears exactly once per route.
-2. Bias many individuals toward short edges from the distance matrix.
-3. Keep diversity: avoid near-duplicate routes across the full population.
-4. Mix quality + exploration: include mostly strong candidates and some diverse alternatives.
+2. First, construct your best (shortest) complete route candidate.
+3. Then construct other low-distance routes by applying small variations to strong routes (e.g., swaps/reinsertions/segment reversals) while keeping total distance low.
+4. Bias many individuals toward short edges from the distance matrix.
+5. Keep diversity: avoid near-duplicate routes across the full population.
+6. Mix quality + exploration: include mostly strong candidates and some diverse alternatives.
 
 OUTPUT RULES (STRICT - CRITICAL FOR PARSING):
 1. Return ONLY a raw JSON array: [[...],[...],...]

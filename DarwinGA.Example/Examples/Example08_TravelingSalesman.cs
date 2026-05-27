@@ -11,8 +11,8 @@ namespace DarwinGA.Example
 {
     internal static class Example08_TravelingSalesman
     {
-        private const int BitsPerCity = 5;
-        private const int CityCount = 32;
+        private const int BitsPerCity = 3;
+        private const int CityCount = 8;
 
 
         private static readonly int[,] DistanceMatrix = BuildDistanceMatrix();

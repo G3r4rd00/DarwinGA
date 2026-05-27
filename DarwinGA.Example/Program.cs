@@ -58,10 +58,10 @@ static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguratio
     Console.WriteLine("================================\n");
 
     Console.WriteLine("Choose an algorithm:");
-    Console.WriteLine("  1) + Diversity + Generation statistics");
-    Console.WriteLine("  2) + AI Population Crosser\n");
+    Console.WriteLine("  1) Genetic Algorithm");
+    Console.WriteLine("  2) Genetic Algorithm + AI Population Crosser\n");
 
-    Console.Write("Option (1-3, default 1): ");
+    Console.Write("Option (1-2, default 1): ");
     var option = Console.ReadLine()?.Trim();
     if (string.IsNullOrWhiteSpace(option))
         option = "1";

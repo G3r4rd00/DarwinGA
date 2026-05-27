@@ -15,5 +15,7 @@ namespace DarwinGA.AI
         Task<string> SendPromptAsync(string prompt);
 
         void SetSystemMessage(string systemMessage);
+
+        void ClearChatHistory();
     }
 }

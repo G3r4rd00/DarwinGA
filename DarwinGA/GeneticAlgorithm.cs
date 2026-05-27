@@ -16,9 +16,13 @@ namespace DarwinGA
 
         public Func<TElement, TElement>? CloneElement { get; set; }
 
-        public required Func<TElement> NewItem { get; set; }
+        
         public required Func<TElement, double> Fitness { get; set; }
         public required Action<GenerationResult<TElement>> OnNewGeneration { get; set; }
+
+        // Cambiado a Func<int, List<TElement>> para permitir flexibilidad en la creación de la población
+        // int es el tamaño deseado de la población, List<TElement> es la población creada
+        public required Func<int, List<TElement>> PopulationCreator { get; set; }
 
         public required ISelection Selection { get; set; }
 
@@ -118,9 +122,7 @@ namespace DarwinGA
                 double.NegativeInfinity,
                 0);
 
-            List<TElement> population = new List<TElement>(populationSize);
-            for (int i = 0; i < populationSize; i++)
-                population.Add(NewItem());
+            List<TElement> population =  PopulationCreator(populationSize);
 
             LastCheckpoint = BuildCheckpoint(population, 0);
             RunCore(population, populationSize, 0, cancellationToken);

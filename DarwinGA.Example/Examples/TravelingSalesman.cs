@@ -9,8 +9,9 @@ using DarwinGA.Terminations;
 
 namespace DarwinGA.Example
 {
-    internal static class Example08_TravelingSalesman
+    internal static class TravelingSalesman
     {
+        private static IAIProvider _aiProvider;
         private const int BitsPerCity = 5;
         private const int CityCount = 32;
 
@@ -55,7 +56,7 @@ namespace DarwinGA.Example
         public static void RunWithAICrosser(IAIProvider aiProvider, GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities) + AI Population Crosser\n");
-
+            _aiProvider = aiProvider;
             int chromosomeSize = CityCount * BitsPerCity;
             int populationSize = settings.PopulationSize;
 
@@ -95,8 +96,6 @@ OUTPUT RULES (CRITICAL):
 Generate optimized offspring now.
 ";
             
-
-
             var aiCrosser = new AICrosser(
                 aiProvider,
                 populationSize,
@@ -113,6 +112,7 @@ Generate optimized offspring now.
 
             var ga = CreateBaseGA(settings);
             ga.PopulationCrosser = aiCrosser;
+            ga.PopulationCreator = IAPopulationCreator;
             ga.Cross = null;
             
             Console.WriteLine("Starting evolution with AI crossover...");
@@ -151,19 +151,149 @@ Generate optimized offspring now.
             return sb.ToString();
         }
 
+        private static List<BinaryEvolutional> IAPopulationCreator(int populationSize)
+        {
+            var matrixDesc = BuildDistanceMatrixDescription();
+
+            // Limit AI batch size to prevent token truncation
+            const int maxAIBatchSize = 10;
+            var requestSize = Math.Min(maxAIBatchSize, populationSize);
+
+            _aiProvider.ClearChatHistory();
+            _aiProvider.SetSystemMessage(@$"
+You are an elite initializer for a genetic algorithm solving the Traveling Salesman Problem (TSP).
+
+OBJECTIVE:
+Generate a high-quality INITIAL population seed (generation 0) that helps convergence to low-distance routes.
+
+TASK CONTEXT:
+- Number of cities: {CityCount}
+- Valid city ids: 0..{CityCount - 1}
+- Requested routes: {requestSize}
+- Each route length: exactly {CityCount}
+
+DISTANCE MATRIX (city[i] to city[j]):
+{matrixDesc}
+
+CONSTRUCTION STRATEGY:
+1. Produce valid permutations: each city appears exactly once per route.
+2. Bias many individuals toward short edges from the distance matrix.
+3. Keep diversity: avoid near-duplicate routes across the full population.
+4. Mix quality + exploration: include mostly strong candidates and some diverse alternatives.
+
+OUTPUT RULES (STRICT - CRITICAL FOR PARSING):
+1. Return ONLY a raw JSON array: [[...],[...],...]
+2. DO NOT wrap the output in markdown code fences (forbidden: ```json and ```)
+3. Output must start with '[' as the first character and end with ']' as the last character
+4. NO markdown, NO prose, NO extra keys, NO preface, NO suffix
+5. Return {requestSize} routes (or fewer if token limit is reached)
+6. Each route must contain exactly {CityCount} integers in range 0..{CityCount - 1}
+7. Each route must be a permutation (no repeated city inside one route)
+8. MANDATORY: Close all brackets properly - incomplete JSON will cause parsing failure
+9. If you cannot fit all {requestSize} routes, return fewer but ALWAYS close the JSON array with ']'
+10. JSON must be parseable by JsonSerializer.Deserialize<List<int[]>>()
+
+Return the initial population now.
+            ");
+            var response = _aiProvider.SendPromptAsync("Generate the initial population now. Return only pure JSON array with no markdown fences, no ```json, and no extra text. IMPORTANT: Close the JSON array properly with ']' even if you cannot fit all routes.").Result;
+            var parsedRoutes = ParseRoutesFromAiResponse(response);
+
+            // If AI returned fewer routes than requested or failed, fill the rest randomly
+            if (parsedRoutes.Count < populationSize)
+            {
+                var remaining = populationSize - parsedRoutes.Count;
+                var randomRoutes = RandomBinaryEvolutionals(remaining);
+                return parsedRoutes.Select(Encode).Concat(randomRoutes).ToList();
+            }
+
+            return parsedRoutes.Select(Encode).ToList();
+        }
+
+        private static List<int[]> ParseRoutesFromAiResponse(string response)
+        {
+            if (string.IsNullOrWhiteSpace(response))
+                return new List<int[]>();
+
+            var json = ExtractJsonArray(response);
+
+            // Validate JSON bracket balance before deserializing
+            if (!HasBalancedBrackets(json))
+            {
+                Console.WriteLine("[WARNING] AI response contains unbalanced JSON brackets - falling back to random population");
+                return new List<int[]>();
+            }
+
+            try
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json) ?? new List<int[]>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARNING] JSON deserialization failed: {ex.Message}");
+                return new List<int[]>();
+            }
+        }
+
+        private static bool HasBalancedBrackets(string json)
+        {
+            int depth = 0;
+            foreach (char c in json)
+            {
+                if (c == '[') depth++;
+                else if (c == ']') depth--;
+                if (depth < 0) return false;
+            }
+            return depth == 0;
+        }
+
+        private static string ExtractJsonArray(string content)
+        {
+            var text = content.Trim();
+
+            if (text.StartsWith("```", StringComparison.Ordinal))
+            {
+                int firstLineBreak = text.IndexOf('\n');
+                if (firstLineBreak >= 0)
+                    text = text[(firstLineBreak + 1)..];
+
+                int closingFence = text.LastIndexOf("```", StringComparison.Ordinal);
+                if (closingFence >= 0)
+                    text = text[..closingFence];
+
+                text = text.Trim();
+            }
+
+            int start = text.IndexOf('[');
+            int end = text.LastIndexOf(']');
+
+            if (start >= 0 && end > start)
+                return text.Substring(start, end - start + 1);
+
+            return text;
+        }
+
+        private static List<BinaryEvolutional> RandomBinaryEvolutionals(int populationSize)
+        {
+            List<BinaryEvolutional> population = new List<BinaryEvolutional>();
+            int chromosomeSize = CityCount * BitsPerCity;
+            for (int p = 0; p < populationSize; p++)
+            {
+                var chr = new BinaryEvolutional(chromosomeSize);
+                for (int i = 0; i < chromosomeSize; i++)
+                    chr.SetGen(i, MyRandom.NextBool());
+                population.Add(chr);
+            }
+            return population;
+        }
+
+
         private static GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(GeneticAlgorithmSettings settings)
         {
             int chromosomeSize =  CityCount * BitsPerCity;
 
             var ga = new GeneticAlgorithm<BinaryEvolutional>
             {
-                NewItem = () =>
-                {
-                    var chr = new BinaryEvolutional(chromosomeSize);
-                    for (int i = 0; i < chromosomeSize; i++)
-                        chr.SetGen(i, MyRandom.NextBool());
-                    return chr;
-                },
+                PopulationCreator = RandomBinaryEvolutionals,
                 Fitness = EvaluateFitness,
                 EnableParallelEvaluation = false,
                 EnableParallelBreeding = false,

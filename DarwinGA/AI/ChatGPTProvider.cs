@@ -38,6 +38,7 @@ namespace DarwinGA.AI
 
         public void SetSystemMessage(string systemMessage)
         {
+            ClearChatHistory();
             if (string.IsNullOrWhiteSpace(systemMessage))
                 throw new ArgumentException("System message cannot be null or empty.", nameof(systemMessage));
             // Update the system message in the history
@@ -68,6 +69,11 @@ namespace DarwinGA.AI
             int maxTotalMessages = 1 + _maxAccumulatedMessages;
             while (_messageHistory.Count > maxTotalMessages)
                 _messageHistory.RemoveAt(1);
+        }
+
+        public void ClearChatHistory()
+        {
+            _messageHistory.Clear();
         }
     }
 }

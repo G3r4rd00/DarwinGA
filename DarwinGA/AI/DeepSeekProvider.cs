@@ -53,8 +53,14 @@ namespace DarwinGA.AI
 
         }
 
+        public void ClearChatHistory()
+        {
+            _messageHistory.Clear();
+        }
+
         public void SetSystemMessage(string systemMessage)
         {
+            ClearChatHistory();
             if (string.IsNullOrWhiteSpace(systemMessage))
                 throw new ArgumentException("System message cannot be null or empty.", nameof(systemMessage));
 
@@ -63,6 +69,11 @@ namespace DarwinGA.AI
                 _messageHistory.Add(m);
             else
                 _messageHistory[0] = m;
+        }
+
+        public void ClearMessageHistory()
+        {
+            _messageHistory.Clear();
         }
 
         public async Task<string> SendPromptAsync(string prompt)

@@ -69,11 +69,11 @@ static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguratio
     switch (option)
     {
         case "1":
-            Example08_TravelingSalesman.RunWithAG(gaSettings);
+            TravelingSalesman.RunWithAG(gaSettings);
             break;
         case "2":
             var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
-            Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
+            TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
             break;
         default:
             Console.WriteLine("Invalid option.");

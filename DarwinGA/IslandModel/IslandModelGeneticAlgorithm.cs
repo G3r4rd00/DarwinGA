@@ -2,6 +2,7 @@ using DarwinGA.Interfaces;
 using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
+using Accord.Genetic;
 
 namespace DarwinGA.IslandModel
 {
@@ -55,7 +56,8 @@ namespace DarwinGA.IslandModel
                 ga.OnNewGeneration = result => lastResults[islandIndex] = result;
 
                 islandGAs[i] = ga;
-                islands[i] = new IslandState<TElement>(CreatePopulation(populationSizePerIsland, ga.NewItem));
+                var population = ga.PopulationCreator(populationSizePerIsland);
+                islands[i] = new IslandState<TElement>(population);
             }
 
             int generation = 0;

@@ -1,7 +1,7 @@
+using System.Text.Json;
 using DarwinGA.AI;
 using DarwinGA.Example;
 using Microsoft.Extensions.Configuration;
-using System.Text.Json;
 
 var appConfiguration = LoadAppConfiguration();
 var gaSettings = GeneticAlgorithmSettings.FromConfiguration(appConfiguration);
@@ -59,23 +59,19 @@ static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguratio
 
     Console.WriteLine("Choose an algorithm:");
     Console.WriteLine("  1) + Diversity + Generation statistics");
-    Console.WriteLine("  2) + Island Model (ring migration)");
-    Console.WriteLine("  3) + AI Population Crosser\n");
+    Console.WriteLine("  2) + AI Population Crosser\n");
 
-    Console.Write("Option (1-3, default 3): ");
+    Console.Write("Option (1-3, default 1): ");
     var option = Console.ReadLine()?.Trim();
     if (string.IsNullOrWhiteSpace(option))
-        option = "3";
+        option = "1";
 
     switch (option)
     {
         case "1":
-            Example08_TravelingSalesman.RunWithDiversity(gaSettings);
+            Example08_TravelingSalesman.RunWithAG(gaSettings);
             break;
         case "2":
-            Example08_TravelingSalesman.RunWithIslandModel(gaSettings);
-            break;
-        case "3":
             var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
             Example08_TravelingSalesman.RunWithAICrosser(aiProvider, gaSettings);
             break;

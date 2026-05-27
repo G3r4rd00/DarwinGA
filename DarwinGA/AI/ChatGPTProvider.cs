@@ -23,7 +23,7 @@ namespace DarwinGA.AI
         /// <param name="model">The model to use (default: gpt-3.5-turbo).</param>
         /// <param name="systemMessage">Optional system message to set the initial context for the conversation.</param>
         /// <param name="maxAccumulatedMessages">Maximum number of accumulated non-system messages kept in history (default: 3).</param>
-        public ChatGPTProvider(string apiKey, string model = "gpt-3.5-turbo", string systemMessage = "", int maxAccumulatedMessages = 3)
+        public ChatGPTProvider(string apiKey, string model = "gpt-3.5-turbo", int maxAccumulatedMessages = 3)
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException("API key cannot be null or empty.", nameof(apiKey));

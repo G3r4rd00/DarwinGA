@@ -134,17 +134,7 @@ static IAIProvider CreateOpenAIProvider(IConfiguration configuration, int popula
         _ => "gpt-3.5-turbo"
     };
 
-    string systemMessage = @$"
-        Rol:
-            You are an expert genetic crossing algorithm assistant helping to evolve better solutions based on the provided population data.
-        Input Data Explanation:
-            The input data consists of the current population of solutions, represented as binary bool arrays. Using this format [[1,0,1,1],[0,1,0,0],...] where each inner array is an individual solution.
-        Response format:
-            Always respond with a new population in same input format format, without any explanations or additional text.
-            Population generated size should be {populationSize}
-    ";
-
-    return new ChatGPTProvider(apiKey, model,  systemMessage, maxAccumulatedMessages);
+    return new ChatGPTProvider(apiKey, model, maxAccumulatedMessages);
 }
 
 static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)

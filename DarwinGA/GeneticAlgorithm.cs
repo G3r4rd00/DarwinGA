@@ -203,8 +203,9 @@ namespace DarwinGA
             results = ApplyDiversityIfEnabled(results);
             var elites = Selection.Select(results);
             int eCount = elites.Count();
-            if (eCount == 0)
-                return null;
+            //Minimun 2 elites for breeding, otherwise we would have to clone the same individual repeatedly which is not ideal (and may not be possible if CloneElement is not configured).
+            if (eCount < 2)
+                throw new InvalidOperationException($"Selection returned {eCount} elites, but at least 2 are required for breeding.");
 
             var stats = CalculateFitnessStats(results);
             double diversityIndex = CalculateDiversityIndexIfEnabled(results, elites);

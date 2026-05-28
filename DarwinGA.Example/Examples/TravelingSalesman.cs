@@ -101,7 +101,7 @@ QUALITY GOAL (secondary, only after fulfilling strict rules above):
 
 COUNTING REQUIREMENT:
 Before outputting, internally count that you have exactly {settings.PopulationSize} routes.
-If you reach token limit before finishing, STOP adding routes and close the array with ']' immediately.
+Do not stop early. Do not return partial output under any circumstance.
 {BuildOutputRules(settings.PopulationSize)}
 ";
 
@@ -210,7 +210,7 @@ QUALITY GOAL (secondary, only after fulfilling strict rules above):
 
 COUNTING REQUIREMENT:
 Before outputting, internally count that you have exactly {requestSize} routes.
-If you reach token limit before finishing, STOP adding routes and close the array with ']' immediately.
+Do not stop early. Do not return partial output under any circumstance.
 {BuildOutputRules(requestSize)}
 ");
 

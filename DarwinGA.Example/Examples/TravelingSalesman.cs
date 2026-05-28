@@ -80,25 +80,29 @@ namespace DarwinGA.Example
             if (useAICrossover)
             {
                 string systemMessage = @$"
-You are an elite genetic crossover operator for Traveling Salesman Problem (TSP) optimization.
+You are a JSON-only crossover operator for TSP (Traveling Salesman Problem).
 
-OBJECTIVE: Generate the next generation by crossing the best parents to minimize total route distance.
+YOUR ONLY JOB: Receive parent routes and output a JSON array of exactly {settings.PopulationSize} offspring routes.
+
+STRICT RULES — VIOLATION CAUSES SYSTEM FAILURE:
+- You MUST output EXACTLY {settings.PopulationSize} routes. Not fewer, not more.
+- Output ONLY the JSON array. No words, no explanation, no markdown, no code fences.
+- First character of your response MUST be '['. Last character MUST be ']'.
+- Each route MUST contain exactly {CityCount} unique integers from 0 to {CityCount - 1}.
+- No city may repeat within a single route.
+- All {settings.PopulationSize} routes must be present and the array properly closed before you stop.
 {BuildInputFormat()}
 {BuildDistanceMatrixSection()}
 
-CROSSOVER STRATEGY:
-1. Preserve elite patterns from top performers (especially index 0-2)
-2. Apply intelligent recombination to exploit low-cost city transitions
-3. Maintain genetic diversity to avoid premature convergence
-4. Favor routes with low-cost transitions across all cities (0 to {CityCount - 1})
-5. Prioritize offspring that reduce total path distance
+QUALITY GOAL (secondary, only after fulfilling strict rules above):
+- Cross the best parent routes to produce offspring with lower total distance.
+- Preserve strong sub-sequences from top parents (index 0-2 are best).
+- Maintain diversity to avoid premature convergence.
 
-PRIORITY DIRECTIVE (MANDATORY, HIGHEST PRIORITY):
-If you find a valid or better solution route, include that exact route as one of the returned individuals.
-This directive applies regardless of parent composition.
+COUNTING REQUIREMENT:
+Before outputting, internally count that you have exactly {settings.PopulationSize} routes.
+If you reach token limit before finishing, STOP adding routes and close the array with ']' immediately.
 {BuildOutputRules(settings.PopulationSize)}
-
-Generate optimized offspring now.
 ";
 
                 var aiCrosser = new AICrosser(
@@ -111,8 +115,11 @@ Generate optimized offspring now.
                     },
                     json =>
                     {
-                        var parsed = System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json) ?? new List<int[]>();
-                        return parsed.Select(route => Encode(route)).ToList();
+                        var routes = ParseRoutesFromAiResponse(json);
+                        if (routes.Count != populationSize)
+                            throw new InvalidOperationException($"AI returned {routes.Count}/{populationSize} routes for crossover. The model did not follow the output rules.");
+
+                        return routes.Select(route => Encode(route)).ToList();
                     },
                     systemMessage);
 
@@ -184,42 +191,40 @@ INPUT FORMAT:
 
             _aiProvider.ClearChatHistory();
             _aiProvider.SetSystemMessage(@$"
-You are an elite initializer for a genetic algorithm solving the Traveling Salesman Problem (TSP).
+You are a JSON-only generator for TSP (Traveling Salesman Problem) initial populations.
 
-OBJECTIVE:
-Generate a high-quality INITIAL population seed (generation 0) that helps convergence to low-distance routes.
-Find and include the shortest valid route you can infer from the distance matrix.
-Also include several additional routes that are still very short (near-optimal), so crossover operations are more effective.
+YOUR ONLY JOB: Output a JSON array of exactly {requestSize} permutation routes.
 
-TASK CONTEXT:
-- Number of cities: {CityCount}
-- Requested routes: {requestSize}
-{BuildInputFormat()}
+STRICT RULES — VIOLATION CAUSES SYSTEM FAILURE:
+- You MUST output EXACTLY {requestSize} routes. Not fewer, not more.
+- Output ONLY the JSON array. No words, no explanation, no markdown, no code fences.
+- First character of your response MUST be '['. Last character MUST be ']'.
+- Each route MUST contain exactly {CityCount} unique integers from 0 to {CityCount - 1}.
+- No city may repeat within a single route.
+- All {requestSize} routes must be present and the array properly closed before you stop.
 {BuildDistanceMatrixSection()}
 
-CONSTRUCTION STRATEGY:
-1. Produce valid permutations: each city appears exactly once per route.
-2. First, construct your best (shortest) complete route candidate.
-3. Then construct other low-distance routes by applying small variations to strong routes (e.g., swaps/reinsertions/segment reversals) while keeping total distance low.
-4. Bias many individuals toward short edges from the distance matrix.
-5. Keep diversity: avoid near-duplicate routes across the full population.
-6. Mix quality + exploration: include mostly strong candidates and some diverse alternatives.
-{BuildOutputRules(requestSize)}
+QUALITY GOAL (secondary, only after fulfilling strict rules above):
+- Prefer routes that use low-cost edges from the distance matrix.
+- Include near-optimal and diverse routes to seed a genetic algorithm.
 
-Return the initial population now.
-            ");
-            var response = _aiProvider.SendPromptAsync("Generate the initial population now. Return only pure JSON array with no markdown fences, no ```json, and no extra text. IMPORTANT: Close the JSON array properly with ']' even if you cannot fit all routes.").Result;
+COUNTING REQUIREMENT:
+Before outputting, internally count that you have exactly {requestSize} routes.
+If you reach token limit before finishing, STOP adding routes and close the array with ']' immediately.
+{BuildOutputRules(requestSize)}
+");
+
+            var response = _aiProvider.SendPromptAsync(
+                $"Output the JSON array of exactly {requestSize} TSP routes now. " +
+                $"Start immediately with '[' and end with ']'. No other text.").Result;
+
             var parsedRoutes = ParseRoutesFromAiResponse(response);
 
-            // If AI returned fewer routes than requested, fill the rest randomly
-            if (parsedRoutes.Count < populationSize)
-            {
-                var remaining = populationSize - parsedRoutes.Count;
-                var randomRoutes = RandomBinaryEvolutionals(remaining);
-                return parsedRoutes.Select(Encode).Concat(randomRoutes).ToList();
-            }
+            if (parsedRoutes.Count < requestSize)
+                throw new InvalidOperationException(
+                    $"AI returned {parsedRoutes.Count}/{requestSize} routes. The model did not follow the output rules.");
 
-            return parsedRoutes.Select(Encode).ToList();
+            return parsedRoutes.Take(populationSize).Select(Encode).ToList();
         }
 
         private static List<int[]> ParseRoutesFromAiResponse(string response)

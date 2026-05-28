@@ -8,7 +8,7 @@ namespace DarwinGA.AI
     /// DeepSeek provider for AI-based genetic operations.
     /// Uses the DeepSeek.NET client to call DeepSeek models.
     /// </summary>
-    public class DeepSeekProvider : IAIProvider
+    public class DeepSeekProvider : AIProviderBase
     {
         private readonly DeepSeekClient _deepSeekClient;
         private readonly string _model;
@@ -53,12 +53,12 @@ namespace DarwinGA.AI
 
         }
 
-        public void ClearChatHistory()
+        public override void ClearChatHistory()
         {
             _messageHistory.Clear();
         }
 
-        public void SetSystemMessage(string systemMessage)
+        public override void SetSystemMessage(string systemMessage)
         {
             ClearChatHistory();
             if (string.IsNullOrWhiteSpace(systemMessage))
@@ -76,7 +76,7 @@ namespace DarwinGA.AI
             _messageHistory.Clear();
         }
 
-        public async Task<string> SendPromptAsync(string prompt)
+        public override async Task<string> SendPromptAsync(string prompt)
         {
             TrimMessageHistory();
             _messageHistory.Add(Message.NewUserMessage(prompt));
@@ -93,10 +93,12 @@ namespace DarwinGA.AI
             if (string.IsNullOrWhiteSpace(message))
                 throw new InvalidOperationException(_deepSeekClient.ErrorMessage ?? "DeepSeek response did not include a message.");
 
-            _messageHistory.Add(Message.NewAssistantMessage(message));
+            var parsedMessage = ParseResponse(message);
+
+            _messageHistory.Add(Message.NewAssistantMessage(parsedMessage));
             TrimMessageHistory();
 
-            return message;
+            return parsedMessage;
         }
 
         private void TrimMessageHistory()

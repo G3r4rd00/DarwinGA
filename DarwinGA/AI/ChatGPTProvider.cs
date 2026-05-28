@@ -9,7 +9,7 @@ namespace DarwinGA.AI
     /// ChatGPT/OpenAI provider for AI-based genetic operations.
     /// Maintains conversation history to provide context across multiple generations.
     /// </summary>
-    public class ChatGPTProvider : IAIProvider
+    public class ChatGPTProvider : AIProviderBase
     {
         private readonly ChatClient _chatClient;
         private readonly List<ChatMessage> _messageHistory;
@@ -36,7 +36,7 @@ namespace DarwinGA.AI
             _messageHistory = new List<ChatMessage>();
         }
 
-        public void SetSystemMessage(string systemMessage)
+        public override void SetSystemMessage(string systemMessage)
         {
             ClearChatHistory();
             if (string.IsNullOrWhiteSpace(systemMessage))
@@ -48,7 +48,7 @@ namespace DarwinGA.AI
                 _messageHistory.Insert(0, new SystemChatMessage(systemMessage));
         }
 
-        public async Task<string> SendPromptAsync(string prompt)
+        public override async Task<string> SendPromptAsync(string prompt)
         {
             _messageHistory.Add(new UserChatMessage(prompt));
             TrimMessageHistory();
@@ -56,12 +56,13 @@ namespace DarwinGA.AI
             // Send and get response
             var response = await _chatClient.CompleteChatAsync(_messageHistory);
             var text = response.Value.Content[0].Text;
+            var parsedText = ParseResponse(text);
 
-            _messageHistory.Add(new AssistantChatMessage(text));
+            _messageHistory.Add(new AssistantChatMessage(parsedText));
             TrimMessageHistory();
 
             // Return the response text
-            return text;
+            return parsedText;
         }
 
         private void TrimMessageHistory()
@@ -71,7 +72,7 @@ namespace DarwinGA.AI
                 _messageHistory.RemoveAt(1);
         }
 
-        public void ClearChatHistory()
+        public override void ClearChatHistory()
         {
             _messageHistory.Clear();
         }

@@ -6,7 +6,7 @@ namespace DarwinGA.AI
     /// <summary>
     /// LM Studio provider using the OpenAI-compatible local REST API.
     /// </summary>
-    public class LMStudioProvider : IAIProvider
+    public class LMStudioProvider : AIProviderBase
     {
         private readonly ChatClient _chatClient;
         private readonly List<ChatMessage> _messageHistory;
@@ -43,26 +43,27 @@ namespace DarwinGA.AI
             _messageHistory = new List<ChatMessage>();
         }
 
-        public void ClearChatHistory()
+        public override void ClearChatHistory()
         {
             _messageHistory.Clear();
         }
 
-        public async Task<string> SendPromptAsync(string prompt)
+        public override async Task<string> SendPromptAsync(string prompt)
         {
             _messageHistory.Add(new UserChatMessage(prompt));
             TrimMessageHistory();
 
             var response = await _chatClient.CompleteChatAsync(_messageHistory);
             var text = response.Value.Content[0].Text;
+            var parsedText = ParseResponse(text);
 
-            _messageHistory.Add(new AssistantChatMessage(text));
+            _messageHistory.Add(new AssistantChatMessage(parsedText));
             TrimMessageHistory();
 
-            return text;
+            return parsedText;
         }
 
-        public void SetSystemMessage(string systemMessage)
+        public override void SetSystemMessage(string systemMessage)
         {
             ClearChatHistory();
             if (string.IsNullOrWhiteSpace(systemMessage))

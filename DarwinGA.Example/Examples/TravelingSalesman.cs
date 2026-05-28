@@ -12,8 +12,8 @@ namespace DarwinGA.Example
     internal static class TravelingSalesman
     {
         private static IAIProvider _aiProvider;
-        private const int BitsPerCity = 5;
-        private const int CityCount = 32;
+        private const int BitsPerCity = 4;
+        private const int CityCount = 16;
 
 
         private static readonly int[,] DistanceMatrix = BuildDistanceMatrix();
@@ -79,20 +79,12 @@ namespace DarwinGA.Example
 
             if (useAICrossover)
             {
-                var matrixDesc = BuildDistanceMatrixDescription();
-
                 string systemMessage = @$"
 You are an elite genetic crossover operator for Traveling Salesman Problem (TSP) optimization.
 
 OBJECTIVE: Generate the next generation by crossing the best parents to minimize total route distance.
-
-INPUT FORMAT:
-- JSON array of routes (city indices): [[0,3,2,...],[1,4,0,...],...]
-- Parents are SORTED by fitness (index 0 = best solution)
-- Each route: exactly {CityCount} city indices (valid range: 0 to {CityCount - 1})
-
-DISTANCE MATRIX (city[i] to city[j]):
-{matrixDesc}
+{BuildInputFormat()}
+{BuildDistanceMatrixSection()}
 
 CROSSOVER STRATEGY:
 1. Preserve elite patterns from top performers (especially index 0-2)
@@ -104,13 +96,7 @@ CROSSOVER STRATEGY:
 PRIORITY DIRECTIVE (MANDATORY, HIGHEST PRIORITY):
 If you find a valid or better solution route, include that exact route as one of the returned individuals.
 This directive applies regardless of parent composition.
-
-OUTPUT RULES (CRITICAL):
-1. Return ONLY raw JSON array of city-index routes: [[4,1,5,...],[5,2,0,...],...]
-2. NO markdown, explanations, or extra text
-3. Exactly {settings.PopulationSize} individuals
-4. Each individual: exactly {CityCount} city indices (integers in range 0 to {CityCount - 1})
-5. Format must be parseable by JsonSerializer.Deserialize<List<int[]>>()
+{BuildOutputRules(settings.PopulationSize)}
 
 Generate optimized offspring now.
 ";
@@ -149,6 +135,27 @@ Generate optimized offspring now.
             }
         }
 
+        private static string BuildOutputRules(int count) => $@"
+OUTPUT RULES (CRITICAL):
+1. Return ONLY a raw JSON array: [[...],[...],...]
+2. DO NOT wrap in markdown code fences (forbidden: ```json and ```)
+3. Output must start with '[' as the first character and end with ']' as the last character
+4. NO markdown, NO prose, NO extra keys, NO preface, NO suffix
+5. Return exactly {count} routes (if token limit forces fewer, ALWAYS close the array with ']')
+6. Each route: exactly {CityCount} integers in range 0..{CityCount - 1}
+7. Each route must be a valid permutation (no repeated city inside one route)
+8. MANDATORY: Close all brackets properly — incomplete JSON will cause parsing failure
+9. JSON must be parseable by JsonSerializer.Deserialize<List<int[]>>()";
+
+        private static string BuildInputFormat() => $@"
+INPUT FORMAT:
+- JSON array of routes (city indices): [[0,3,2,...],[1,4,0,...],...]
+- Routes are SORTED by fitness (index 0 = best solution)
+- Each route: exactly {CityCount} city indices (valid range: 0 to {CityCount - 1})";
+
+        private static string BuildDistanceMatrixSection() =>
+            $"DISTANCE MATRIX (city[i] to city[j]):\n{BuildDistanceMatrixDescription()}";
+
         private static string BuildDistanceMatrixDescription()
         {
             var sb = new System.Text.StringBuilder();
@@ -171,8 +178,6 @@ Generate optimized offspring now.
 
         private static List<BinaryEvolutional> IAPopulationCreator(int populationSize)
         {
-            var matrixDesc = BuildDistanceMatrixDescription();
-
             // Limit AI batch size to prevent token truncation
             const int maxAIBatchSize = 10;
             var requestSize = Math.Min(maxAIBatchSize, populationSize);
@@ -188,12 +193,9 @@ Also include several additional routes that are still very short (near-optimal),
 
 TASK CONTEXT:
 - Number of cities: {CityCount}
-- Valid city ids: 0..{CityCount - 1}
 - Requested routes: {requestSize}
-- Each route length: exactly {CityCount}
-
-DISTANCE MATRIX (city[i] to city[j]):
-{matrixDesc}
+{BuildInputFormat()}
+{BuildDistanceMatrixSection()}
 
 CONSTRUCTION STRATEGY:
 1. Produce valid permutations: each city appears exactly once per route.
@@ -202,18 +204,7 @@ CONSTRUCTION STRATEGY:
 4. Bias many individuals toward short edges from the distance matrix.
 5. Keep diversity: avoid near-duplicate routes across the full population.
 6. Mix quality + exploration: include mostly strong candidates and some diverse alternatives.
-
-OUTPUT RULES (STRICT - CRITICAL FOR PARSING):
-1. Return ONLY a raw JSON array: [[...],[...],...]
-2. DO NOT wrap the output in markdown code fences (forbidden: ```json and ```)
-3. Output must start with '[' as the first character and end with ']' as the last character
-4. NO markdown, NO prose, NO extra keys, NO preface, NO suffix
-5. Return {requestSize} routes (or fewer if token limit is reached)
-6. Each route must contain exactly {CityCount} integers in range 0..{CityCount - 1}
-7. Each route must be a permutation (no repeated city inside one route)
-8. MANDATORY: Close all brackets properly - incomplete JSON will cause parsing failure
-9. If you cannot fit all {requestSize} routes, return fewer but ALWAYS close the JSON array with ']'
-10. JSON must be parseable by JsonSerializer.Deserialize<List<int[]>>()
+{BuildOutputRules(requestSize)}
 
 Return the initial population now.
             ");

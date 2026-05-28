@@ -16,6 +16,6 @@ namespace DarwinGA.AI
 
         void SetSystemMessage(string systemMessage);
 
-        void ClearChatHistory();
+        
     }
 }

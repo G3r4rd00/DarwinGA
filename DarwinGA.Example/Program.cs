@@ -10,23 +10,17 @@ RunGridWalkerMenu(gaSettings, appConfiguration);
 return;
 
 
-static int GetMaxAccumulatedMessages(IConfiguration configuration)
-{
-    var rawValue = configuration["AI:MaxAccumulatedMessages"];
-    return int.TryParse(rawValue, out var value) && value > 0 ? value : 3;
-}
-
 static IAIProvider CreateDeepSeekProviderWithModel(IConfiguration configuration, string model)
 {
     string? apiKey = configuration["DeepSeek:ApiKey"] ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
-    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
+    
 
     if (string.IsNullOrWhiteSpace(apiKey))
         throw new InvalidOperationException("DeepSeek API key not found in appsettings.json or environment variables.");
 
     string baseUrl = configuration["DeepSeek:BaseUrl"] ?? "https://api.deepseek.com";
 
-    return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl, maxAccumulatedMessages: maxAccumulatedMessages);
+    return new DeepSeekProvider(apiKey, model, baseUrl: baseUrl);
 }
 
 static IConfigurationRoot LoadAppConfiguration()
@@ -107,7 +101,7 @@ static IAIProvider GetAIProvider(IConfiguration configuration, int populationSiz
 static IAIProvider CreateOpenAIProvider(IConfiguration configuration, int populationSize)
 {
     string? apiKey = configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
+    
 
     if (string.IsNullOrWhiteSpace(apiKey))
         throw new InvalidOperationException("OpenAI API key not found in appsettings.json or environment variables.");
@@ -134,13 +128,13 @@ static IAIProvider CreateOpenAIProvider(IConfiguration configuration, int popula
         _ => "gpt-3.5-turbo"
     };
 
-    return new ChatGPTProvider(apiKey, model, maxAccumulatedMessages);
+    return new ChatGPTProvider(apiKey, model);
 }
 
 static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
 {
     string? apiKey = configuration["DeepSeek:ApiKey"] ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
-    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
+    
 
     if (string.IsNullOrWhiteSpace(apiKey))
         throw new InvalidOperationException("DeepSeek API key not found in appsettings.json or environment variables.");
@@ -165,7 +159,7 @@ static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
 {
     string baseUrl = configuration["LMStudio:BaseUrl"] ?? "http://localhost:1234/v1";
     string? apiKey = configuration["LMStudio:ApiKey"] ?? "sk-lm-mrpJFc9W:tpjJ8TAMJGZG1wYKJBkJ";
-    int maxAccumulatedMessages = GetMaxAccumulatedMessages(configuration);
+    
 
     if (string.IsNullOrWhiteSpace(baseUrl))
         throw new InvalidOperationException("LM Studio BaseUrl was not found in appsettings.json.");
@@ -182,7 +176,7 @@ static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
     if (string.IsNullOrWhiteSpace(model))
         throw new InvalidOperationException("LM Studio model cannot be empty.");
 
-    return new LMStudioProvider(baseUrl, model, apiKey, maxAccumulatedMessages: maxAccumulatedMessages);
+    return new LMStudioProvider(baseUrl, model, apiKey);
 }
 
 

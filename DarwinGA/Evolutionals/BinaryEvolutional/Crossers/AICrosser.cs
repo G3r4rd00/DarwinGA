@@ -38,7 +38,6 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
             SerializePopulation = serializePopulation ?? throw new ArgumentNullException(nameof(serializePopulation));
             DeserializePopulation = deserializePopulation ?? throw new ArgumentNullException(nameof(deserializePopulation));
             systemMessage = systemMessage ?? throw new ArgumentNullException(nameof(systemMessage));
-            _aiProvider.ClearChatHistory();
             _aiProvider.SetSystemMessage(systemMessage);
         }
 

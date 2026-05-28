@@ -13,7 +13,6 @@ namespace DarwinGA.AI
         private readonly DeepSeekClient _deepSeekClient;
         private readonly string _model;
         private readonly List<Message> _messageHistory;
-        private readonly int _maxAccumulatedMessages;
 
         /// <summary>
         /// Creates a new DeepSeek provider.
@@ -23,7 +22,7 @@ namespace DarwinGA.AI
         /// <param name="systemMessage">Optional system message to set the initial context for the conversation.</param>
         /// <param name="baseUrl">DeepSeek API base URL.</param>
         /// <param name="maxAccumulatedMessages">Maximum number of accumulated non-system messages kept in history (default: 3).</param>
-        public DeepSeekProvider(string apiKey, string model = "deepseek-chat", string systemMessage = "", string baseUrl = "https://api.deepseek.com", int maxAccumulatedMessages = 3)
+        public DeepSeekProvider(string apiKey, string model = "deepseek-chat", string systemMessage = "", string baseUrl = "https://api.deepseek.com")
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException("API key cannot be null or empty.", nameof(apiKey));
@@ -34,8 +33,7 @@ namespace DarwinGA.AI
             if (string.IsNullOrWhiteSpace(baseUrl))
                 throw new ArgumentException("Base URL cannot be null or empty.", nameof(baseUrl));
 
-            if (maxAccumulatedMessages < 1)
-                throw new ArgumentOutOfRangeException(nameof(maxAccumulatedMessages), "Max accumulated messages must be greater than 0.");
+            
 
             var httpClient = new HttpClient
             {
@@ -47,20 +45,13 @@ namespace DarwinGA.AI
 
         
 
-            _maxAccumulatedMessages = maxAccumulatedMessages;
-
             _messageHistory = new List<Message>();
 
         }
 
-        public override void ClearChatHistory()
-        {
-            _messageHistory.Clear();
-        }
 
         public override void SetSystemMessage(string systemMessage)
         {
-            ClearChatHistory();
             if (string.IsNullOrWhiteSpace(systemMessage))
                 throw new ArgumentException("System message cannot be null or empty.", nameof(systemMessage));
 
@@ -71,14 +62,10 @@ namespace DarwinGA.AI
                 _messageHistory[0] = m;
         }
 
-        public void ClearMessageHistory()
-        {
-            _messageHistory.Clear();
-        }
-
+        
         public override async Task<string> SendPromptAsync(string prompt)
         {
-            TrimMessageHistory();
+            _messageHistory.RemoveAll(m => m.Role != "system"); // Keep only system messages
             _messageHistory.Add(Message.NewUserMessage(prompt));
             
             var request = new ChatRequest
@@ -96,15 +83,10 @@ namespace DarwinGA.AI
             var parsedMessage = ParseResponse(message);
 
             _messageHistory.Add(Message.NewAssistantMessage(parsedMessage));
-            TrimMessageHistory();
+            
 
             return parsedMessage;
         }
 
-        private void TrimMessageHistory()
-        {
-            while (_messageHistory.Count > _maxAccumulatedMessages)
-                _messageHistory.RemoveAt(1);
-        }
     }
 }

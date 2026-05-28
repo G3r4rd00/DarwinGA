@@ -9,8 +9,7 @@ namespace DarwinGA.AI
     public class LMStudioProvider : AIProviderBase
     {
         private readonly ChatClient _chatClient;
-        private readonly List<ChatMessage> _messageHistory;
-        private readonly int _maxAccumulatedMessages;
+        private string _systemMessage = string.Empty;
 
         /// <summary>
         /// Creates a new LM Studio provider.
@@ -19,17 +18,13 @@ namespace DarwinGA.AI
         /// <param name="model">Model identifier loaded in LM Studio.</param>
         /// <param name="apiKey">Optional API key. LM Studio usually accepts any non-empty token.</param>
         /// <param name="systemMessage">Optional system message.</param>
-        /// <param name="maxAccumulatedMessages">Maximum number of accumulated non-system messages kept in history (default: 3).</param>
-        public LMStudioProvider(string baseUrl, string model, string? apiKey = null, string systemMessage = "", int maxAccumulatedMessages = 3)
+        public LMStudioProvider(string baseUrl, string model, string? apiKey = null, string systemMessage = "")
         {
             if (string.IsNullOrWhiteSpace(baseUrl))
                 throw new ArgumentException("Base URL cannot be null or empty.", nameof(baseUrl));
 
             if (string.IsNullOrWhiteSpace(model))
                 throw new ArgumentException("Model cannot be null or empty.", nameof(model));
-
-            if (maxAccumulatedMessages < 1)
-                throw new ArgumentOutOfRangeException(nameof(maxAccumulatedMessages), "Max accumulated messages must be greater than 0.");
 
             var options = new OpenAI.OpenAIClientOptions
             {
@@ -39,47 +34,30 @@ namespace DarwinGA.AI
             var token = string.IsNullOrWhiteSpace(apiKey) ? "lm-studio" : apiKey;
             _chatClient = new ChatClient(model, new ApiKeyCredential(token), options);
 
-            _maxAccumulatedMessages = maxAccumulatedMessages;
-            _messageHistory = new List<ChatMessage>();
+            if (!string.IsNullOrWhiteSpace(systemMessage))
+                _systemMessage = systemMessage;
         }
 
-        public override void ClearChatHistory()
-        {
-            _messageHistory.Clear();
-        }
 
         public override async Task<string> SendPromptAsync(string prompt)
         {
-            _messageHistory.Add(new UserChatMessage(prompt));
-            TrimMessageHistory();
+            var messages = new List<ChatMessage>();
+            if (!string.IsNullOrWhiteSpace(_systemMessage))
+                messages.Add(new SystemChatMessage(_systemMessage));
+            messages.Add(new UserChatMessage(prompt));
 
-            var response = await _chatClient.CompleteChatAsync(_messageHistory);
+            var response = await _chatClient.CompleteChatAsync(messages);
             var text = response.Value.Content[0].Text;
             var parsedText = ParseResponse(text);
-
-            _messageHistory.Add(new AssistantChatMessage(parsedText));
-            TrimMessageHistory();
 
             return parsedText;
         }
 
         public override void SetSystemMessage(string systemMessage)
         {
-            ClearChatHistory();
             if (string.IsNullOrWhiteSpace(systemMessage))
                 throw new ArgumentException("System message cannot be null or empty.", nameof(systemMessage));
-            // Update the system message in the history
-            if (_messageHistory.Count > 0 && _messageHistory[0] is SystemChatMessage)
-                _messageHistory[0] = new SystemChatMessage(systemMessage);
-            else
-                _messageHistory.Insert(0, new SystemChatMessage(systemMessage));
-        }
-
-        private void TrimMessageHistory()
-        {
-            int maxTotalMessages = 1 + _maxAccumulatedMessages;
-            while (_messageHistory.Count > maxTotalMessages)
-                _messageHistory.RemoveAt(1);
+            _systemMessage = systemMessage;
         }
     }
 }

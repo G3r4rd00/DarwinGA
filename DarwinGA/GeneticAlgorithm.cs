@@ -122,7 +122,9 @@ namespace DarwinGA
                 double.NegativeInfinity,
                 0);
 
-            List<TElement> population =  PopulationCreator(populationSize);
+            List<TElement> population = PopulationCreator(populationSize);
+            EnsurePopulationSize(population, populationSize);
+
 
             LastCheckpoint = BuildCheckpoint(population, 0);
             RunCore(population, populationSize, 0, cancellationToken);
@@ -510,6 +512,18 @@ namespace DarwinGA
         {
             if (RandomSeed.HasValue)
                 MyRandom.SetSeed(RandomSeed.Value);
+        }
+
+        private static void EnsurePopulationSize(List<TElement>? population, int expectedPopulationSize)
+        {
+            if (population is null)
+                throw new InvalidOperationException("PopulationCreator returned null population.");
+
+            if (population.Count != expectedPopulationSize)
+            {
+                throw new InvalidOperationException(
+                    $"PopulationCreator must generate exactly {expectedPopulationSize} elements, but generated {population.Count}.");
+            }
         }
 
         private void InitializeEvolutionState(

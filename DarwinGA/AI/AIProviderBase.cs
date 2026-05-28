@@ -19,8 +19,6 @@ namespace DarwinGA.AI
 
         public abstract void SetSystemMessage(string systemMessage);
 
-        public abstract void ClearChatHistory();
-
         /// <summary>
         /// Parses the AI response and extracts JSON when it is wrapped in markdown tags.
         /// </summary>

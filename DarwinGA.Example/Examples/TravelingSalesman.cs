@@ -239,7 +239,12 @@ If you reach token limit before finishing, STOP adding routes and close the arra
 
             try
             {
-                return System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(json)
+                return System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(
+                    json,
+                    new System.Text.Json.JsonSerializerOptions
+                    {
+                        AllowTrailingCommas = true
+                    })
                     ?? throw new InvalidOperationException("AI returned null JSON payload for initial population.");
             }
             catch (Exception ex)
@@ -278,10 +283,54 @@ If you reach token limit before finishing, STOP adding routes and close the arra
             }
 
             int start = text.IndexOf('[');
-            int end = text.LastIndexOf(']');
+            if (start < 0)
+                return text;
 
-            if (start >= 0 && end > start)
-                return text.Substring(start, end - start + 1);
+            int depth = 0;
+            bool inString = false;
+            bool escaped = false;
+
+            for (int i = start; i < text.Length; i++)
+            {
+                char c = text[i];
+
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                        continue;
+                    }
+
+                    if (c == '\\')
+                    {
+                        escaped = true;
+                        continue;
+                    }
+
+                    if (c == '"')
+                        inString = false;
+
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+
+                if (c == '[')
+                {
+                    depth++;
+                }
+                else if (c == ']')
+                {
+                    depth--;
+                    if (depth == 0)
+                        return text.Substring(start, i - start + 1);
+                }
+            }
 
             return text;
         }

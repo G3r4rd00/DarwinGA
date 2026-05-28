@@ -23,9 +23,11 @@ namespace DarwinGA.Example
             var populationRaw = configuration["GeneticAlgorithm:PopulationSize"];
             var populationSize = int.TryParse(populationRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedPopulation)
                 ? parsedPopulation
-                : 50;
+                : 0;
+
             if (populationSize <= 0)
-                populationSize = 50;
+                throw new ArgumentException("Population size must be a positive integer.", nameof(configuration));
+            
 
             return new GeneticAlgorithmSettings
             {

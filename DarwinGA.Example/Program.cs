@@ -142,12 +142,17 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
     Console.WriteLine("Choose a model:");
     Console.WriteLine(" 1) deepseek-chat");
     Console.WriteLine(" 2) deepseek-reasoner");
-    Console.Write("Option (1-2): ");
+    Console.WriteLine(" 3) deepseek-v4-pro");
+    Console.WriteLine(" 4) deepseek-v4-flash");
+    
+    Console.Write("Option (1-4, default 1): ");
     var option = Console.ReadLine()?.Trim();
 
     string model = option switch
     {
         "2" => "deepseek-reasoner",
+        "3" => "deepseek-v4-pro",
+        "4" => "deepseek-v4-flash",
         _ => "deepseek-chat"
     };
 

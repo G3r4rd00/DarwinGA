@@ -46,9 +46,6 @@ Edita `DarwinGA.Example/appsettings.json` con tus valores:
     "PopulationSize": 50,
     "MutationProbability": 0.2
   },
-  "AI": {
-    "MaxAccumulatedMessages": 1
-  },
   "OpenAI": {
     "ApiKey": ""
   },
@@ -95,7 +92,6 @@ Durante la ejecución puedes elegir:
 
 - `GeneticAlgorithm:PopulationSize`: tamaño de la población.
 - `GeneticAlgorithm:MutationProbability`: probabilidad de mutación (0.0 a 1.0).
-- `AI:MaxAccumulatedMessages`: cuántos mensajes de contexto conserva la conversación con la IA.
 
 ---
 

@@ -21,7 +21,6 @@ namespace DarwinGA.AI
         /// <param name="model">The model to use (default: deepseek-chat).</param>
         /// <param name="systemMessage">Optional system message to set the initial context for the conversation.</param>
         /// <param name="baseUrl">DeepSeek API base URL.</param>
-        /// <param name="maxAccumulatedMessages">Maximum number of accumulated non-system messages kept in history (default: 3).</param>
         public DeepSeekProvider(string apiKey, string model = "deepseek-chat", string systemMessage = "", string baseUrl = "https://api.deepseek.com")
         {
             if (string.IsNullOrWhiteSpace(apiKey))

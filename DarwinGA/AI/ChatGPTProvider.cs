@@ -19,8 +19,6 @@ namespace DarwinGA.AI
         /// </summary>
         /// <param name="apiKey">Your OpenAI API key.</param>
         /// <param name="model">The model to use (default: gpt-3.5-turbo).</param>
-        /// <param name="systemMessage">Optional system message to set the initial context for the conversation.</param>
-        /// <param name="maxAccumulatedMessages">Maximum number of accumulated non-system messages kept in history (default: 3).</param>
         public ChatGPTProvider(string apiKey, string model = "gpt-3.5-turbo")
         {
             if (string.IsNullOrWhiteSpace(apiKey))

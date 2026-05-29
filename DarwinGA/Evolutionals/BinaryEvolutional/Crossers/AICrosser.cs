@@ -19,6 +19,7 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
         private readonly IAIProvider _aiProvider;
         private readonly Func<List<BinaryEvolutional>,string> SerializePopulation;
         private readonly Func<string, List<BinaryEvolutional>> DeserializePopulation;
+        
 
         /// <summary>
         /// Creates a new AI-based crossover operator.
@@ -66,7 +67,6 @@ namespace DarwinGA.Evolutionals.BinaryEvolutional.Crossers
 
             //3. Deserializar la respuesta
             List<BinaryEvolutional> offspring = DeserializePopulation(aiResponse);
-
             return offspring;
         }    
     }

@@ -40,7 +40,7 @@ namespace DarwinGA.Example
             if (useAICrossover)
             {
                 ga.PopulationCrosser = aiSupport.CreateCrosser(populationSize);
-                ga.Cross = null;
+                ga.Cross = new UniformCross();
             }
 
             Console.WriteLine("Starting evolution...");

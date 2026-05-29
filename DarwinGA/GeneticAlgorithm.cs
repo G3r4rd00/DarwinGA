@@ -25,7 +25,7 @@ namespace DarwinGA
 
         public required IMutation<TElement> Mutation { get; set; } 
 
-        public ICross<TElement>? Cross { get; set; }
+        public required ICross<TElement> Cross { get; set; }
 
         public IPopulationCrosser<TElement>? PopulationCrosser { get; set; }
 
@@ -108,7 +108,6 @@ namespace DarwinGA
         public void Run(int populationSize, CancellationToken cancellationToken)
         {
             EnsureSelectionConfiguration();
-            EnsureCrossoverConfiguration();
             ConfigureRandomSeed();
 
             InitializeEvolutionState(
@@ -138,7 +137,6 @@ namespace DarwinGA
                 throw new ArgumentException("Checkpoint population cannot be empty.", nameof(checkpoint));
 
             EnsureSelectionConfiguration();
-            EnsureCrossoverConfiguration();
             ConfigureRandomSeed();
 
             MutationProbability = checkpoint.MutationProbability;
@@ -388,12 +386,14 @@ namespace DarwinGA
 
         private TElement[] BreedWithPopulationCrosser(int size, FitnessResult[] elitesArray, ParallelOptions parallelOptions)
         {
-            int eCount = elitesArray.Length;
-            
             var parents = elitesArray.Select(fr => (TElement)fr.Element).ToList();
             
             // Aplicar crossover poblacional
             List<TElement> offspring = PopulationCrosser!.CrossPopulation(parents);
+            //Asegura la población generada es del tamaño esperado, rellenando con hijos creados con el método clásico si es necesario (esto puede pasar si PopulationCrosser genera menos individuos que el tamaño de población requerido).
+            while (offspring.Count < size)
+                offspring.Add(CreateChild(elitesArray));
+
             EnsurePopulationSize(offspring, size);
 
             // Aplicar mutación
@@ -427,21 +427,20 @@ namespace DarwinGA
 
         private TElement[] BreedWithClassicCrossover(int size, FitnessResult[] elitesArray, ParallelOptions parallelOptions)
         {
-            int eCount = elitesArray.Length;
             var next = new TElement[size];
 
             if (EnableParallelBreeding)
             {
                 Parallel.For(0, size, parallelOptions, i =>
                 {
-                    next[i] = CreateChild(elitesArray, eCount);
+                    next[i] = CreateChild(elitesArray);
                 });
             }
             else
             {
                 for (int i = 0; i < size; i++)
                 {
-                    next[i] = CreateChild(elitesArray, eCount);
+                    next[i] = CreateChild(elitesArray);
                 }
             }
 
@@ -455,43 +454,23 @@ namespace DarwinGA
             return next;
         }
 
-        private TElement CreateChild(FitnessResult[] elitesArray, int eCount)
+        private TElement CreateChild(FitnessResult[] elitesArray)
         {
-            TElement p1 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
-            TElement p2 = (TElement)elitesArray[MyRandom.NextInt(eCount)].Element;
+            TElement p1 = (TElement)elitesArray[MyRandom.NextInt(elitesArray.Length)].Element;
+            TElement p2 = (TElement)elitesArray[MyRandom.NextInt(elitesArray.Length)].Element;
 
-            TElement child = MyRandom.NextDouble() <= CrossoverProbability
-                ? Cross!.Apply(p1, p2)
-                : CreateFallbackChildWithoutCrossover(p1);
+            TElement child =  Cross.Apply(p1, p2);
 
-            Mutation.Apply(child, MutationProbability);
             return child;
         }
 
-        private TElement CreateFallbackChildWithoutCrossover(TElement parent)
-        {
-            if (CloneElement is not null)
-                return CloneElement(parent);
-
-            if (Cross is not null)
-                return Cross.Apply(parent, parent);
-
-            throw new InvalidOperationException("Cannot create child without crossover: neither CloneElement nor Cross is configured.");
-        }
+        
 
         private void EnsureSelectionConfiguration()
         {
             if (EnableAgeBasedSelection && !(Selection is AgeBasedSelection))
             {
                 Selection = new AgeBasedSelection(Selection, AgePenaltyFactor);
-            }
-        }
-
-        private void EnsureCrossoverConfiguration()
-        {
-            if (PopulationCrosser == null && Cross == null)
-            {
-                throw new InvalidOperationException("Either Cross or PopulationCrosser must be configured.");
             }
         }
 

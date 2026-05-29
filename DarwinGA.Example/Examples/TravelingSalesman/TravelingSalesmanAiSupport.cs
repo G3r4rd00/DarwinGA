@@ -27,7 +27,10 @@ namespace DarwinGA.Example
                 Respond only with {populationSize} routes in JSON format. The returned object must be an array of arrays of integers, for example: [[0,3,2,...],[1,4,0,...],...]
             ").Result;
 
-            return ParseRoutesFromAiResponse(response, populationSize);
+            var population = ParseRoutesFromAiResponse(response);
+            while (population.Count < populationSize)
+                population.Add(new BinaryEvolutional(_problem.ChromosomeSize));
+            return population;
         }
 
         public AICrosser CreateCrosser(int populationSize)
@@ -44,7 +47,12 @@ namespace DarwinGA.Example
 
                     return System.Text.Json.JsonSerializer.Serialize(parentRoutes);
                 },
-                json => ParseRoutesFromAiResponse(json, populationSize),
+                json =>
+                {
+                    var childs = ParseRoutesFromAiResponse(json);
+                    
+                    return childs;
+                },
                 BuildCrossoverSystemMessage(populationSize));
         }
 
@@ -119,7 +127,7 @@ OUTPUT RULES (CRITICAL):
 8. MANDATORY: Close all brackets properly - incomplete JSON will cause parsing failure
 9. JSON must be parseable by JsonSerializer.Deserialize<List<int[]>>()";
 
-        private List<BinaryEvolutional> ParseRoutesFromAiResponse(string response, int populationSize)
+        private List<BinaryEvolutional> ParseRoutesFromAiResponse(string response)
         {
             try
             {
@@ -143,9 +151,6 @@ OUTPUT RULES (CRITICAL):
                     .Select(_encoding.Encode)
                     .Where(chromosome => chromosome._genes.Length == _problem.ChromosomeSize)
                     .ToList();
-
-                while (chromosomes.Count < populationSize)
-                    chromosomes.Add(new BinaryEvolutional(_problem.ChromosomeSize));
 
                 return chromosomes;
             }

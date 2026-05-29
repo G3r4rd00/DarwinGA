@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using DarwinGA.AI;
 using DarwinGA.Evolutionals.BinaryEvolutional;
@@ -21,11 +22,10 @@ namespace DarwinGA.Example
 
         public List<BinaryEvolutional> CreatePopulation(int populationSize)
         {
-            _aiProvider.SetSystemMessage(BuildPopulationSystemMessage(populationSize));
+            var systemMessage = BuildPopulationSystemMessage(populationSize);
+            _aiProvider.SetSystemMessage(systemMessage);
 
-            var response = _aiProvider.SendPromptAsync(@$"
-                Respond only with {populationSize} routes in JSON format. The returned object must be an array of arrays of integers, for example: [[0,3,2,...],[1,4,0,...],...]
-            ").Result;
+            var response = _aiProvider.SendPromptAsync(@"Generate initial population").Result;
 
             var population = ParseRoutesFromAiResponse(response);
             while (population.Count < populationSize)
@@ -59,24 +59,17 @@ namespace DarwinGA.Example
         private string BuildPopulationSystemMessage(int populationSize) => @$"
 You are a JSON-only generator for TSP (Traveling Salesman Problem) initial populations.
 
-YOUR ONLY JOB: Output a JSON array of exactly {populationSize} permutation routes.
+YOUR GOAL IS FIND MINIMUM DISTANCE: generate routes with low total distance based on the provided distance matrix.
 
-STRICT RULES - VIOLATION CAUSES SYSTEM FAILURE:
-- You MUST output EXACTLY {populationSize} routes. Not fewer, not more.
-- Output ONLY the JSON array. No words, no explanation, no markdown, no code fences.
-- First character of your response MUST be '['. Last character MUST be ']'.
-- Each route MUST contain exactly {TravelingSalesmanProblem.CityCount} unique integers from 0 to {TravelingSalesmanProblem.CityCount - 1}.
-- No city may repeat within a single route.
-- All {populationSize} routes must be present and the array properly closed before you stop.
-{BuildDistanceMatrixSection()}
-
-QUALITY GOAL (secondary, only after fulfilling strict rules above):
-- Prefer routes that use low-cost edges from the distance matrix.
+OTHER RULES:
+- PRIORITIZE MAXIMUM POPULATION DIVERSITY: generated routes should be as different from each other as possible.
+- Maximize variation in city order and edge combinations across all routes.
+- Avoid producing similar or repeated route patterns between individuals.
+- Routes that use low-cost edges from the distance matrix.
 - Include near-optimal and diverse routes to seed a genetic algorithm.
 
-COUNTING REQUIREMENT:
-Before outputting, internally count that you have exactly {populationSize} routes.
-Do not stop early. Do not return partial output under any circumstance.
+{BuildDistanceMatrixSection()}
+
 {BuildOutputRules(populationSize)}
 ";
 
@@ -107,7 +100,27 @@ Do not stop early. Do not return partial output under any circumstance.
 ";
 
         private string BuildDistanceMatrixSection()
-            => $"DISTANCE MATRIX (city[i] to city[j]):\n{_problem.BuildDistanceMatrixDescription()}";
+            => $"DISTANCE MATRIX JSON int[][]:\n{
+                    JsonSerializer.Serialize(ToJaggedArray(_problem.DistanceMatrix))
+                }";
+
+        private static T[][] ToJaggedArray<T>(T[,] matrix)
+        {
+            var rows = matrix.GetLength(0);
+            var cols = matrix.GetLength(1);
+            var result = new T[rows][];
+
+            for (var i = 0; i < rows; i++)
+            {
+                result[i] = new T[cols];
+                for (var j = 0; j < cols; j++)
+                {
+                    result[i][j] = matrix[i, j];
+                }
+            }
+
+            return result;
+        }
 
         private static string BuildInputFormat() => @$"
 INPUT FORMAT:

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Primitives;
 using System.Globalization;
 using System.Text;
 
@@ -43,26 +44,6 @@ namespace DarwinGA.Example
             return dist;
         }
 
-        public string BuildDistanceMatrixDescription()
-        {
-            var sb = new StringBuilder();
-
-            for (int i = 0; i < CityCount; i++)
-            {
-                sb.Append('[');
-                for (int j = 0; j < CityCount; j++)
-                {
-                    sb.Append(DistanceMatrix[i, j].ToString("F0", CultureInfo.InvariantCulture));
-                    if (j < CityCount - 1)
-                        sb.Append(',');
-                }
-
-                sb.Append(']');
-                if (i < CityCount - 1)
-                    sb.AppendLine();
-            }
-
-            return sb.ToString();
-        }
+        
     }
 }

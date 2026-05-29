@@ -22,10 +22,14 @@ namespace DarwinGA.Example
 
         public List<BinaryEvolutional> CreatePopulation(int populationSize)
         {
-            var systemMessage = BuildPopulationSystemMessage(populationSize);
+            int iaPopulationSize = Convert.ToInt16( populationSize * 0.1);
+            var systemMessage = BuildPopulationSystemMessage(iaPopulationSize);
             _aiProvider.SetSystemMessage(systemMessage);
 
-            var response = _aiProvider.SendPromptAsync(@"Generate initial population").Result;
+            var response = _aiProvider.SendPromptAsync(@$"
+                        Generate initial population
+                        {BuildOutputRules(iaPopulationSize)}
+                    ").Result;
 
             var population = ParseRoutesFromAiResponse(response);
             while (population.Count < populationSize)

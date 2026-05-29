@@ -74,12 +74,19 @@ namespace DarwinGA.AI
             };
 
             var response = await _deepSeekClient.ChatAsync(request);
-            var message = response?.Choices?.FirstOrDefault()?.Message?.Content;
+            
+            var message = response?.Choices?.FirstOrDefault()?.Message;
+            if(message== null)
+                throw new Exception("DeepSeek response did not include any choices or messages.");
 
-            if (string.IsNullOrWhiteSpace(message))
+            var responseContent = !string.IsNullOrWhiteSpace(message.Content)
+                ? message.Content
+                : message.ReasoningContent;
+
+            if (string.IsNullOrWhiteSpace(responseContent))
                 throw new InvalidOperationException(_deepSeekClient.ErrorMessage ?? "DeepSeek response did not include a message.");
 
-            var parsedMessage = ParseResponse(message);
+            var parsedMessage = ParseResponse(responseContent);
 
             _messageHistory.Add(Message.NewAssistantMessage(parsedMessage));
             

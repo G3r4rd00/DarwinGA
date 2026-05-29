@@ -39,7 +39,7 @@ namespace DarwinGA
 
         public bool EnableParallelEvaluation { get; set; } = false;
         
-        public bool EnableParallelBreeding { get; set; } = false;
+        
 
         public ParallelOptions ParallelOptions { get; set; } = new ParallelOptions();
 
@@ -374,45 +374,13 @@ namespace DarwinGA
         {
             var elitesArray = elites as FitnessResult[] ?? elites.ToArray();
 
-            // Si tenemos PopulationCrosser, usarlo
-            if (PopulationCrosser != null)
-            {
-                return BreedWithPopulationCrosser(size, elitesArray,  parallelOptions);
-            }
-
-            // Si no, usar el método clásico con ICross
-            return BreedWithClassicCrossover(size, elitesArray,  parallelOptions);
-        }
-
-        private TElement[] BreedWithPopulationCrosser(int size, FitnessResult[] elitesArray, ParallelOptions parallelOptions)
-        {
-            var parents = elitesArray.Select(fr => (TElement)fr.Element).ToList();
-            
-            // Aplicar crossover poblacional
-            List<TElement> offspring = PopulationCrosser!.CrossPopulation(parents);
-            //Asegura la población generada es del tamaño esperado, rellenando con hijos creados con el método clásico si es necesario (esto puede pasar si PopulationCrosser genera menos individuos que el tamaño de población requerido).
-            while (offspring.Count < size)
-                offspring.Add(CreateChild(elitesArray));
-
-            EnsurePopulationSize(offspring, size);
+            //Cross
+            TElement[] next = ApplyCrossover(size, elitesArray);
+            EnsurePopulationSize(next.ToList(), size);
 
             // Aplicar mutación
-            if (EnableParallelBreeding)
-            {
-                Parallel.For(0, offspring.Count, parallelOptions, i =>
-                {
-                    Mutation.Apply(offspring[i], MutationProbability);
-                });
-            }
-            else
-            {
-                for (int i = 0; i < offspring.Count; i++)
-                {
-                    Mutation.Apply(offspring[i], MutationProbability);
-                }
-            }
-
-            var next = offspring.ToArray();
+            for (int i = 0; i < next.Length; i++)
+                Mutation.Apply(next[i], MutationProbability);
 
             // Aplicar reinserción si está configurada
             if (Reinsert != null)
@@ -422,36 +390,23 @@ namespace DarwinGA
                     next[i] = toReinsert[i];
             }
 
+
             return next;
         }
 
-        private TElement[] BreedWithClassicCrossover(int size, FitnessResult[] elitesArray, ParallelOptions parallelOptions)
+
+        private TElement[] ApplyCrossover(int size, FitnessResult[] elitesArray)
         {
-            var next = new TElement[size];
+            var next = new List<TElement>();
+            if(PopulationCrosser != null) 
+                next = PopulationCrosser!.CrossPopulation(elitesArray.Select(fr => (TElement)fr.Element).ToList());
 
-            if (EnableParallelBreeding)
-            {
-                Parallel.For(0, size, parallelOptions, i =>
-                {
-                    next[i] = CreateChild(elitesArray);
-                });
-            }
-            else
-            {
-                for (int i = 0; i < size; i++)
-                {
-                    next[i] = CreateChild(elitesArray);
-                }
-            }
+            while(next.Count < size) 
+                next.Add(CreateChild(elitesArray));
 
-            if(Reinsert != null)
-            {
-                TElement[] toReinsert = Reinsert.GetSurvivors(elitesArray);
-                for(int i = 0;i < toReinsert.Length;i++ )
-                    next[i] = toReinsert[i];
-            }
+            EnsurePopulationSize(next, size);
 
-            return next;
+            return next.ToArray();
         }
 
         private TElement CreateChild(FitnessResult[] elitesArray)

@@ -20,14 +20,14 @@ namespace DarwinGA.Example
 
         public void RunWithAG(GeneticAlgorithmSettings settings)
         {
-            Console.WriteLine("[Example 8] Traveling Salesman (30 cities)\n");
+            Console.WriteLine($"Traveling Salesman ({_problem.DistanceMatrix.GetLength(1)} cities)\n");
             var ga = CreateBaseGA(settings);
             ga.Run(settings.PopulationSize);
         }
 
         public void RunWithAIOptions(IAIProvider aiProvider, GeneticAlgorithmSettings settings, bool useAIPopulationCreator, bool useAICrossover)
         {
-            Console.WriteLine($"[Example 8] Traveling Salesman (30 cities) | AI Initial Population: {(useAIPopulationCreator ? "ON" : "OFF")} | AI Crossover: {(useAICrossover ? "ON" : "OFF")}\n");
+            Console.WriteLine($"Traveling Salesman ({_problem.DistanceMatrix.GetLength(1)} cities) | AI Initial Population: {(useAIPopulationCreator ? "ON" : "OFF")} | AI Crossover: {(useAICrossover ? "ON" : "OFF")}\n");
 
             var ga = CreateBaseGA(settings);
             var aiSupport = new TravelingSalesmanAiSupport(_problem, _encoding, aiProvider);
@@ -62,7 +62,6 @@ namespace DarwinGA.Example
                 PopulationCreator = _encoding.CreateRandomPopulation,
                 Fitness = _encoding.EvaluateFitness,
                 EnableParallelEvaluation = false,
-                EnableParallelBreeding = false,
                 MutationProbability = settings.MutationProbability,
                 CrossoverProbability = 0.85,
                 Mutation = new RandomMutation(),

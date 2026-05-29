@@ -21,16 +21,14 @@ namespace DarwinGA.Example
         public void RunWithAG(GeneticAlgorithmSettings settings)
         {
             Console.WriteLine("[Example 8] Traveling Salesman (30 cities)\n");
-            int populationSize = settings.PopulationSize;
             var ga = CreateBaseGA(settings);
-            ga.Run(populationSize);
+            ga.Run(settings.PopulationSize);
         }
 
         public void RunWithAIOptions(IAIProvider aiProvider, GeneticAlgorithmSettings settings, bool useAIPopulationCreator, bool useAICrossover)
         {
             Console.WriteLine($"[Example 8] Traveling Salesman (30 cities) | AI Initial Population: {(useAIPopulationCreator ? "ON" : "OFF")} | AI Crossover: {(useAICrossover ? "ON" : "OFF")}\n");
 
-            int populationSize = settings.PopulationSize;
             var ga = CreateBaseGA(settings);
             var aiSupport = new TravelingSalesmanAiSupport(_problem, _encoding, aiProvider);
 
@@ -39,7 +37,7 @@ namespace DarwinGA.Example
 
             if (useAICrossover)
             {
-                ga.PopulationCrosser = aiSupport.CreateCrosser(populationSize);
+                ga.PopulationCrosser = aiSupport.CreateCrosser(settings.PopulationSize);
                 ga.Cross = new UniformCross();
             }
 
@@ -49,7 +47,7 @@ namespace DarwinGA.Example
 
             try
             {
-                ga.Run(populationSize);
+                ga.Run(settings.PopulationSize);
             }
             catch (Exception ex)
             {
@@ -67,7 +65,7 @@ namespace DarwinGA.Example
                 EnableParallelBreeding = false,
                 MutationProbability = settings.MutationProbability,
                 CrossoverProbability = 0.85,
-                Mutation = new KFlipMutation(4),
+                Mutation = new RandomMutation(),
                 Cross = new UniformCross(0.5),
                 Selection = new EliteSelecction(0.1),
                 Termination = new FitnessThresholdTermination(1000),

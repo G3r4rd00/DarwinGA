@@ -14,6 +14,7 @@ namespace DarwinGA.Example
         private static IAIProvider _aiProvider;
         private const int BitsPerCity = 5;
         private const int CityCount = 32;
+        private const int ChromosomeSize = CityCount * BitsPerCity;
 
 
         private static readonly int[,] DistanceMatrix = BuildDistanceMatrix();
@@ -92,17 +93,12 @@ Do not stop early. Do not return partial output under any circumstance.
 {BuildOutputRules(populationSize)}
 ");
 
-            var response = _aiProvider.SendPromptAsync(
-                $"Output the JSON array of exactly {populationSize} TSP routes now. " +
-                $"Start immediately with '[' and end with ']'. No other text.").Result;
+            var response = _aiProvider.SendPromptAsync(@$"
+                Respond only with {populationSize} routes in JSON format. The returned object must be an array of arrays of integers, for example: [[0,3,2,...],[1,4,0,...],...]
+            ").Result;
 
-            var parsedRoutes = ParseRoutesFromAiResponse(response);
-
-            if (parsedRoutes.Count < populationSize)
-                throw new InvalidOperationException(
-                    $"AI returned {parsedRoutes.Count}/{populationSize} routes. The model did not follow the output rules.");
-
-            return parsedRoutes.Take(populationSize).Select(Encode).ToList();
+            var parsedRoutes = ParseRoutesFromAiResponse(response,populationSize, ChromosomeSize);
+            return parsedRoutes;
         }
 
 
@@ -157,11 +153,8 @@ Do not stop early. Do not return partial output under any circumstance.
                     },
                     json =>
                     {
-                        var routes = ParseRoutesFromAiResponse(json);
-                        if (routes.Count != populationSize)
-                            throw new InvalidOperationException($"AI returned {routes.Count}/{populationSize} routes for crossover. The model did not follow the output rules.");
-
-                        return routes.Select(route => Encode(route)).ToList();
+                        var routes = ParseRoutesFromAiResponse(json, populationSize, ChromosomeSize);
+                        return routes;
                     },
                     systemMessage);
 
@@ -226,112 +219,38 @@ INPUT FORMAT:
         }
 
        
-        private static List<int[]> ParseRoutesFromAiResponse(string response)
+        private static List<BinaryEvolutional> ParseRoutesFromAiResponse(string response, int populationSize, int chromosomeSize)
         {
-            if (string.IsNullOrWhiteSpace(response))
-                throw new InvalidOperationException("AI returned an empty response for initial population.");
-
-            var json = ExtractJsonArray(response);
-
-            if (!HasBalancedBrackets(json))
-                throw new InvalidOperationException("AI returned malformed JSON (unbalanced brackets) for initial population.");
-
+            List<BinaryEvolutional> ret = new List<BinaryEvolutional>();
+            
+            
             try
             {
-                return System.Text.Json.JsonSerializer.Deserialize<List<int[]>>(
-                    json,
-                    new System.Text.Json.JsonSerializerOptions
-                    {
-                        AllowTrailingCommas = true
-                    })
-                    ?? throw new InvalidOperationException("AI returned null JSON payload for initial population.");
+                var routeMatches = System.Text.RegularExpressions.Regex.Matches(response, @"\[\s*([^\[\]]+)\s*\]");
+                List<int[]> routes = new List<int[]>();
+                foreach (System.Text.RegularExpressions.Match routeMatch in routeMatches)
+                {
+                    var numberMatches = System.Text.RegularExpressions.Regex.Matches(routeMatch.Groups[1].Value, @"-?\d+");
+                    if (numberMatches.Count == 0)
+                        continue;
+
+                    var route = numberMatches
+                        .Select(m => int.Parse(m.Value, System.Globalization.CultureInfo.InvariantCulture))
+                        .ToArray();
+
+                    routes.Add(route);
+                }
+
+                ret = routes.Select(r => Encode(r)).Where(r => r._genes.Length == chromosomeSize).ToList();
+                while (ret.Count < populationSize)
+                    ret.Add(new BinaryEvolutional(chromosomeSize));
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException("AI returned JSON that could not be parsed for initial population.", ex);
+                throw new InvalidOperationException("AI returned JSON that could not be parsed.", ex);
             }
-        }
-
-        private static bool HasBalancedBrackets(string json)
-        {
-            int depth = 0;
-            foreach (char c in json)
-            {
-                if (c == '[') depth++;
-                else if (c == ']') depth--;
-                if (depth < 0) return false;
-            }
-            return depth == 0;
-        }
-
-        private static string ExtractJsonArray(string content)
-        {
-            var text = content.Trim();
-
-            if (text.StartsWith("```", StringComparison.Ordinal))
-            {
-                int firstLineBreak = text.IndexOf('\n');
-                if (firstLineBreak >= 0)
-                    text = text[(firstLineBreak + 1)..];
-
-                int closingFence = text.LastIndexOf("```", StringComparison.Ordinal);
-                if (closingFence >= 0)
-                    text = text[..closingFence];
-
-                text = text.Trim();
-            }
-
-            int start = text.IndexOf('[');
-            if (start < 0)
-                return text;
-
-            int depth = 0;
-            bool inString = false;
-            bool escaped = false;
-
-            for (int i = start; i < text.Length; i++)
-            {
-                char c = text[i];
-
-                if (inString)
-                {
-                    if (escaped)
-                    {
-                        escaped = false;
-                        continue;
-                    }
-
-                    if (c == '\\')
-                    {
-                        escaped = true;
-                        continue;
-                    }
-
-                    if (c == '"')
-                        inString = false;
-
-                    continue;
-                }
-
-                if (c == '"')
-                {
-                    inString = true;
-                    continue;
-                }
-
-                if (c == '[')
-                {
-                    depth++;
-                }
-                else if (c == ']')
-                {
-                    depth--;
-                    if (depth == 0)
-                        return text.Substring(start, i - start + 1);
-                }
-            }
-
-            return text;
+            
+            return ret;
         }
 
         private static List<BinaryEvolutional> RandomBinaryEvolutionals(int populationSize)
@@ -351,8 +270,6 @@ INPUT FORMAT:
 
         private static GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(GeneticAlgorithmSettings settings)
         {
-            int chromosomeSize =  CityCount * BitsPerCity;
-
             var ga = new GeneticAlgorithm<BinaryEvolutional>
             {
                 PopulationCreator = RandomBinaryEvolutionals,

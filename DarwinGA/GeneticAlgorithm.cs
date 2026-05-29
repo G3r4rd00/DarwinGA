@@ -16,12 +16,9 @@ namespace DarwinGA
 
         public Func<TElement, TElement>? CloneElement { get; set; }
 
-        
         public required Func<TElement, double> Fitness { get; set; }
         public required Action<GenerationResult<TElement>> OnNewGeneration { get; set; }
 
-        // Cambiado a Func<int, List<TElement>> para permitir flexibilidad en la creación de la población
-        // int es el tamaño deseado de la población, List<TElement> es la población creada
         public required Func<int, List<TElement>> PopulationCreator { get; set; }
 
         public required ISelection Selection { get; set; }
@@ -397,17 +394,7 @@ namespace DarwinGA
             
             // Aplicar crossover poblacional
             List<TElement> offspring = PopulationCrosser!.CrossPopulation(parents);
-            
-
-            // Asegurar que tenemos el tamaño correcto
-            while (offspring.Count < size)
-            {
-                offspring.Add((TElement)elitesArray[MyRandom.NextInt(eCount)].Element);
-            }
-            if (offspring.Count > size)
-            {
-                offspring = offspring.Take(size).ToList();
-            }
+            EnsurePopulationSize(offspring, size);
 
             // Aplicar mutación
             if (EnableParallelBreeding)

@@ -1,4 +1,3 @@
-
 using DarwinGA.Interfaces;
 using DarwinGA.Selections;
 using System.Linq;
@@ -73,6 +72,7 @@ namespace DarwinGA
         private double _baseCrossoverProbability;
         private double _bestFitnessSoFar;
         private int _stagnationGenerations;
+        private readonly Queue<double> _recentBestFitness = new Queue<double>(3);
 
         private readonly record struct FitnessStats(
             int EvaluatedCount,
@@ -461,30 +461,44 @@ namespace DarwinGA
             CrossoverProbability = currentCrossoverProbability;
             _bestFitnessSoFar = bestFitnessSoFar;
             _stagnationGenerations = stagnationGenerations;
+            _recentBestFitness.Clear();
         }
 
         private void UpdateAdaptiveState(double bestFitness)
         {
-            bool improved = bestFitness > _bestFitnessSoFar + ImprovementEpsilon;
-            if (improved)
-            {
+            if (bestFitness > _bestFitnessSoFar)
                 _bestFitnessSoFar = bestFitness;
+
+            _recentBestFitness.Enqueue(bestFitness);
+            if (_recentBestFitness.Count > 3)
+                _recentBestFitness.Dequeue();
+
+            if (_recentBestFitness.Count < 3)
+                return;
+
+            var recent = _recentBestFitness.ToArray();
+            double slope = (recent[2] - recent[0]) / 2.0;
+
+            if (Math.Abs(slope) <= ImprovementEpsilon)
+                _stagnationGenerations++;
+            else
                 _stagnationGenerations = 0;
 
-                if (!EnableAdaptiveRates)
-                    return;
-
-                MutationProbability = Math.Max(AdaptiveMutationMin, MutationProbability - AdaptiveMutationStep);
-                CrossoverProbability = Math.Min(AdaptiveCrossoverMax, CrossoverProbability + AdaptiveCrossoverStep);
-                return;
-            }
-
-            _stagnationGenerations++;
-            if (!EnableAdaptiveRates || _stagnationGenerations < StagnationThreshold)
+            if (!EnableAdaptiveRates)
                 return;
 
-            MutationProbability = Math.Min(AdaptiveMutationMax, MutationProbability + AdaptiveMutationStep);
-            CrossoverProbability = Math.Max(AdaptiveCrossoverMin, CrossoverProbability - AdaptiveCrossoverStep);
+            var avg = _recentBestFitness.Average();
+
+            double mutationDelta = Math.Abs(AdaptiveMutationStep);
+            if (avg == bestFitness)
+                MutationProbability = MutationProbability + mutationDelta;
+            else if (avg > bestFitness )
+                MutationProbability = MutationProbability - mutationDelta;
+            //check if MutationProbability is in range, if not reset to base value
+            if (MutationProbability > AdaptiveMutationMax)
+                MutationProbability = AdaptiveMutationMax;
+            else if (MutationProbability < AdaptiveMutationMin)
+                MutationProbability = AdaptiveMutationMin;
         }
 
         private GeneticAlgorithmCheckpoint<TElement> BuildCheckpoint(IReadOnlyList<TElement> population, int nextGeneration)

@@ -63,6 +63,9 @@ namespace DarwinGA.Example
                 Fitness = _encoding.EvaluateFitness,
                 EnableParallelEvaluation = false,
                 MutationProbability = settings.MutationProbability,
+                EnableAdaptiveRates = settings.EnableAdaptiveRates,
+                ImprovementEpsilon = settings.ImprovementEpsilon,
+                AdaptiveMutationStep = settings.AdaptiveMutationStep,
                 CrossoverProbability = 0.85,
                 Mutation = new RandomMutation(),
                 Cross = new UniformCross(0.5),
@@ -72,7 +75,7 @@ namespace DarwinGA.Example
                 {
                     var route = _encoding.Decode(result.BestElement);
                     var distance = _encoding.EvaluateRouteDistance(route);
-                    Console.WriteLine($"Gen: {result.GenerationNum} | BestFitness: {result.BestFitness} | BestDistance: {distance}");
+                    Console.WriteLine($"Gen: {result.GenerationNum} | MutationRate: {result.MutationProbability:F4} | BestFitness: {result.BestFitness} | BestDistance: {distance}");
                     System.Threading.Thread.Sleep(500);
                 }
             };

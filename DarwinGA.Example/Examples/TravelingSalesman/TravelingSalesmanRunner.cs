@@ -64,8 +64,6 @@ namespace DarwinGA.Example
                 EnableParallelEvaluation = false,
                 MutationProbability = settings.MutationProbability,
                 EnableAdaptiveRates = settings.EnableAdaptiveRates,
-                ImprovementEpsilon = settings.ImprovementEpsilon,
-                AdaptiveMutationStep = settings.AdaptiveMutationStep,
                 CrossoverProbability = 0.85,
                 Mutation = new RandomMutation(),
                 Cross = new UniformCross(0.5),

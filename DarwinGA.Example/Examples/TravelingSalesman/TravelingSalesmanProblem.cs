@@ -6,7 +6,7 @@ namespace DarwinGA.Example
 {
     internal sealed class TravelingSalesmanProblem
     {
-        public const int DefaultCityCount = 32;
+        public const int DefaultCityCount = 20;
         public const int MinCityCount = 3;
 
         public int CityCount { get; }

@@ -46,7 +46,7 @@ Edita `DarwinGA.Example/appsettings.json` con tus valores:
 {
   "GeneticAlgorithm": {
     "PopulationSize": 50,
-    "MutationProbability": 0.2
+    "MutationProbability": 0.1
   },
   "OpenAI": {
     "ApiKey": ""

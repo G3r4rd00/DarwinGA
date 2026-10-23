@@ -13,6 +13,9 @@ namespace DarwinGA.Example
 
         public int PopulationSize { get; init; } = 50;
 
+        // Number of best individuals carried unchanged into the next generation (0 = no reinsertion).
+        public int ReinsertCount { get; init; } = 0;
+
         public static GeneticAlgorithmSettings FromConfiguration(IConfiguration configuration)
         {
             if (configuration is null)
@@ -38,13 +41,19 @@ namespace DarwinGA.Example
 
             if (populationSize <= 0)
                 throw new ArgumentException("Population size must be a positive integer.", nameof(configuration));
-            
+
+            var reinsertRaw = configuration["GeneticAlgorithm:ReinsertCount"];
+            var reinsertCount = int.TryParse(reinsertRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedReinsert)
+                ? Math.Clamp(parsedReinsert, 0, populationSize)
+                : 0;
+
 
             return new GeneticAlgorithmSettings
             {
                 MutationProbability = mutationProbability,
                 EnableAdaptiveRates = enableAdaptiveRates,
-                PopulationSize = populationSize
+                PopulationSize = populationSize,
+                ReinsertCount = reinsertCount
             };
         }
     }

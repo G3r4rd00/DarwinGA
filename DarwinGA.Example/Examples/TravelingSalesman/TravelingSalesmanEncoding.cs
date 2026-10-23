@@ -47,8 +47,9 @@ namespace DarwinGA.Example
                         city |= (1 << (_problem.BitsPerCity - 1 - b));
                 }
 
+                // Map out-of-range indices deterministically so the same chromosome always decodes to the same route.
                 if (city >= _problem.CityCount)
-                    city = MyRandom.NextInt(0, _problem.CityCount);
+                    city %= _problem.CityCount;
 
                 cities.Add(city);
             }

@@ -2,6 +2,7 @@ using DarwinGA.AI;
 using DarwinGA.Evolutionals.BinaryEvolutional;
 using DarwinGA.Evolutionals.BinaryEvolutional.Crossers;
 using DarwinGA.Evolutionals.BinaryEvolutional.Mutations;
+using DarwinGA.Reinsertions;
 using DarwinGA.Selections;
 using DarwinGA.Terminations;
 
@@ -22,6 +23,7 @@ namespace DarwinGA.Example
         {
             Console.WriteLine($"Traveling Salesman ({_problem.DistanceMatrix.GetLength(1)} cities)\n");
             var ga = CreateBaseGA(settings);
+            PrintConfiguration(ga, settings, useAIPopulationCreator: false, useAICrossover: false);
             ga.Run(settings.PopulationSize);
         }
 
@@ -41,6 +43,8 @@ namespace DarwinGA.Example
                 ga.Cross = new UniformCross();
             }
 
+            PrintConfiguration(ga, settings, useAIPopulationCreator, useAICrossover);
+
             Console.WriteLine("Starting evolution...");
             if (useAIPopulationCreator || useAICrossover)
                 Console.WriteLine("(This will make API calls to OpenAI-compatible provider)\n");
@@ -53,6 +57,25 @@ namespace DarwinGA.Example
             {
                 Console.WriteLine($"\nERROR during evolution: {ex.Message}");
             }
+        }
+
+        private void PrintConfiguration(GeneticAlgorithm<BinaryEvolutional> ga, GeneticAlgorithmSettings settings, bool useAIPopulationCreator, bool useAICrossover)
+        {
+            Console.WriteLine("Genetic algorithm configuration");
+            Console.WriteLine("-------------------------------");
+            Console.WriteLine($"  Cities              : {_problem.CityCount} ({_problem.BitsPerCity} bits/city, chromosome {_problem.ChromosomeSize} bits)");
+            Console.WriteLine($"  Population size     : {settings.PopulationSize}");
+            Console.WriteLine($"  Initial population  : {(useAIPopulationCreator ? "AI" : "Random")}");
+            Console.WriteLine($"  Selection           : {ga.Selection.GetType().Name}");
+            Console.WriteLine($"  Crossover           : {(useAICrossover ? "AI + " : "")}{ga.Cross.GetType().Name}");
+            Console.WriteLine($"  Crossover prob.     : {ga.CrossoverProbability} (not applied by the engine)");
+            Console.WriteLine($"  Mutation            : {ga.Mutation.GetType().Name}");
+            Console.WriteLine($"  Mutation prob.      : {ga.MutationProbability}");
+            Console.WriteLine($"  Adaptive rates      : {(ga.EnableAdaptiveRates ? "ON" : "OFF")}");
+            Console.WriteLine($"  Reinsert best       : {(settings.ReinsertCount > 0 ? settings.ReinsertCount.ToString() : "OFF")}");
+            Console.WriteLine($"  Termination         : {ga.Termination.GetType().Name}");
+            Console.WriteLine($"  Parallel evaluation : {(ga.EnableParallelEvaluation ? "ON" : "OFF")}");
+            Console.WriteLine();
         }
 
         private GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(GeneticAlgorithmSettings settings)
@@ -68,6 +91,7 @@ namespace DarwinGA.Example
                 Mutation = new RandomMutation(),
                 Cross = new UniformCross(0.5),
                 Selection = new EliteSelecction(0.1),
+                Reinsert = settings.ReinsertCount > 0 ? new ReinsertBest<BinaryEvolutional>(settings.ReinsertCount) : null,
                 Termination = new FitnessThresholdTermination(1000),
                 OnNewGeneration = result =>
                 {

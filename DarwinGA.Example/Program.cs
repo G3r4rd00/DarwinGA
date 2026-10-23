@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 var appConfiguration = LoadAppConfiguration();
 var gaSettings = GeneticAlgorithmSettings.FromConfiguration(appConfiguration);
 
-RunGridWalkerMenu(gaSettings, appConfiguration);
+RunProblemMenu(gaSettings, appConfiguration);
 return;
 
 
@@ -47,12 +47,41 @@ static IConfigurationRoot LoadAppConfiguration()
 
 
 
-static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
+static void RunProblemMenu(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
 {
-    Console.Clear();
-    Console.WriteLine("DarwinGA - Grid walker pathfinding");
+    if (!Console.IsOutputRedirected)
+        Console.Clear();
+    Console.WriteLine("DarwinGA - Optimization problems");
     Console.WriteLine("================================\n");
+    Console.WriteLine("Choose a problem:");
+    Console.WriteLine(" 1) Traveling Salesman (planted shortest path)");
+    Console.WriteLine(" 2) Job Shop Scheduling FT06 (6x6, optimum 55)");
+    Console.WriteLine(" 3) Job Shop Scheduling FT10 (10x10, optimum 930, hard)");
+    Console.Write("Option (1-3, default 3): ");
+    var problemOption = Console.ReadLine()?.Trim();
 
+    if (problemOption == "1")
+    {
+        RunTravelingSalesman(gaSettings, appConfiguration);
+        return;
+    }
+
+    var runner = new JobShopRunner(problemOption == "2" ? JobShopProblem.FT06() : JobShopProblem.FT10());
+    bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
+    bool useAICrossover = AskYesNo("Use AI for crossover? (Y/n): ", true);
+
+    if (!useAIPopulation && !useAICrossover)
+    {
+        runner.RunWithAG(gaSettings);
+        return;
+    }
+
+    var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
+    runner.RunWithAIOptions(aiProvider, gaSettings, useAIPopulation, useAICrossover);
+}
+
+static void RunTravelingSalesman(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
+{
     int cityCount = AskCityCount(appConfiguration);
     bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
     bool useAICrossover = AskYesNo("Use AI for crossover? (Y/n): ", true);

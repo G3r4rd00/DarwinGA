@@ -21,6 +21,7 @@ namespace DarwinGA.AI
 
         /// <summary>
         /// Parses the AI response and extracts JSON when it is wrapped in markdown tags.
+        /// The last block is used, since a model that reasons first puts its final answer at the end.
         /// </summary>
         /// <param name="response">Raw AI response.</param>
         /// <returns>Extracted JSON if found; otherwise the original response.</returns>
@@ -29,13 +30,13 @@ namespace DarwinGA.AI
             if (string.IsNullOrWhiteSpace(response))
                 return response;
 
-            var jsonMatch = JsonCodeBlockRegex.Match(response);
-            if (jsonMatch.Success)
-                return jsonMatch.Groups["json"].Value.Trim();
+            var jsonMatches = JsonCodeBlockRegex.Matches(response);
+            if (jsonMatches.Count > 0)
+                return jsonMatches[^1].Groups["json"].Value.Trim();
 
-            var anyMatch = AnyCodeBlockRegex.Match(response);
-            if (anyMatch.Success)
-                return anyMatch.Groups["content"].Value.Trim();
+            var anyMatches = AnyCodeBlockRegex.Matches(response);
+            if (anyMatches.Count > 0)
+                return anyMatches[^1].Groups["content"].Value.Trim();
 
             return response;
         }

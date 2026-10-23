@@ -12,11 +12,13 @@ Ahora el ejemplo permite activar **dos capacidades clave** de forma independient
 Al ejecutar `DarwinGA.Example`, verás estas preguntas:
 
 ```text
-Use AI for initial population creation? (y/N):
-Use AI for crossover? (y/N):
+Use AI for initial population creation? (Y/n):
+Use AI for crossover? (Y/n):
 ```
 
-Puedes usar una sola opción o ambas al mismo tiempo.
+Puedes usar una sola opción o ambas al mismo tiempo. Ambas están activadas por defecto (pulsa Enter); responde `n` para desactivarlas.
+
+Por defecto el proveedor es **Claude** con el modelo **opus**.
 
 ---
 
@@ -55,6 +57,11 @@ Edita `DarwinGA.Example/appsettings.json` con tus valores:
   },
   "LMStudio": {
     "BaseUrl": "http://localhost:1234/v1"
+  },
+  "Claude": {
+    "Model": "opus",
+    "CliPath": "",
+    "TimeoutSeconds": 600
   }
 }
 ```
@@ -72,6 +79,7 @@ Durante la ejecución puedes elegir:
 1. **OpenAI**
 2. **DeepSeek**
 3. **LM Studio** (API local compatible con OpenAI)
+4. **Claude** (vía Claude Code CLI, usando tu suscripción de Claude)
 
 ### OpenAI
 - Requiere `OpenAI:ApiKey` o `OPENAI_API_KEY`.
@@ -85,6 +93,15 @@ Durante la ejecución puedes elegir:
 - Ideal para uso local sin depender de nube.
 - `LMStudio:BaseUrl` por defecto: `http://localhost:1234/v1`.
 - El ejemplo intenta descubrir modelos automáticamente desde `/models`.
+
+### Claude (suscripción)
+- No necesita API key: ejecuta `claude -p` (Claude Code en modo headless) con la cuenta con la que hayas iniciado sesión (Pro/Max).
+- Requisitos: tener Claude Code instalado (`npm install -g @anthropic-ai/claude-code`) y haber iniciado sesión ejecutando `claude` una vez.
+- Modelos en el menú: `sonnet`, `opus`, `haiku`, `fable` (alias de la última versión de cada uno) u **Other** para escribir un nombre completo (p. ej. `claude-opus-5-5`).
+- `Claude:Model`: modelo usado si pulsas Enter sin elegir opción (por defecto `opus`).
+- `Claude:CliPath`: ruta al ejecutable `claude` (vacío = se busca en el PATH).
+- `Claude:TimeoutSeconds`: tiempo máximo por respuesta (por defecto 600).
+- Se ignora `ANTHROPIC_API_KEY` para forzar el uso de la suscripción. El consumo cuenta contra los límites de uso de tu plan.
 
 ---
 

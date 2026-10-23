@@ -86,7 +86,7 @@ STRICT RULES - VIOLATION CAUSES SYSTEM FAILURE:
 - You MUST output EXACTLY {populationSize} routes. Not fewer, not more.
 - Output ONLY the JSON array. No words, no explanation, no markdown, no code fences.
 - First character of your response MUST be '['. Last character MUST be ']'.
-- Each route MUST contain exactly {TravelingSalesmanProblem.CityCount} unique integers from 0 to {TravelingSalesmanProblem.CityCount - 1}.
+- Each route MUST contain exactly {_problem.CityCount} unique integers from 0 to {_problem.CityCount - 1}.
 - No city may repeat within a single route.
 - All {populationSize} routes must be present and the array properly closed before you stop.
 {BuildInputFormat()}
@@ -126,20 +126,20 @@ Do not stop early. Do not return partial output under any circumstance.
             return result;
         }
 
-        private static string BuildInputFormat() => @$"
+        private string BuildInputFormat() => @$"
 INPUT FORMAT:
 - JSON array of routes (city indices): [[0,3,2,...],[1,4,0,...],...]
 - Routes are SORTED by fitness (index 0 = best solution)
-- Each route: exactly {TravelingSalesmanProblem.CityCount} city indices (valid range: 0 to {TravelingSalesmanProblem.CityCount - 1})";
+- Each route: exactly {_problem.CityCount} city indices (valid range: 0 to {_problem.CityCount - 1})";
 
-        private static string BuildOutputRules(int count) => @$"
+        private string BuildOutputRules(int count) => @$"
 OUTPUT RULES (CRITICAL):
 1. Return ONLY a raw JSON array: [[...],[...],...]
 2. DO NOT wrap in markdown code fences (forbidden: ```json and ```)
 3. Output must start with '[' as the first character and end with ']' as the last character
 4. NO markdown, NO prose, NO extra keys, NO preface, NO suffix
 5. Return exactly {count} routes (if token limit forces fewer, ALWAYS close the array with ']')
-6. Each route: exactly {TravelingSalesmanProblem.CityCount} integers in range 0..{TravelingSalesmanProblem.CityCount - 1}
+6. Each route: exactly {_problem.CityCount} integers in range 0..{_problem.CityCount - 1}
 7. Each route must be a valid permutation (no repeated city inside one route)
 8. MANDATORY: Close all brackets properly - incomplete JSON will cause parsing failure
 9. JSON must be parseable by JsonSerializer.Deserialize<List<int[]>>()";

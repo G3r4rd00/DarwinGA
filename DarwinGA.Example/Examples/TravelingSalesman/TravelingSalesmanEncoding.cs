@@ -31,24 +31,24 @@ namespace DarwinGA.Example
         {
             var route = Decode(chromosome);
             double totalDistance = EvaluateRouteDistance(route);
-            return TravelingSalesmanProblem.CityCount / totalDistance;
+            return _problem.CityCount / totalDistance;
         }
 
         public List<int> Decode(BinaryEvolutional chromosome)
         {
             var cities = new List<int>();
 
-            for (int i = 0; i < chromosome.Size; i += TravelingSalesmanProblem.BitsPerCity)
+            for (int i = 0; i < chromosome.Size; i += _problem.BitsPerCity)
             {
                 int city = 0;
-                for (int b = 0; b < TravelingSalesmanProblem.BitsPerCity; b++)
+                for (int b = 0; b < _problem.BitsPerCity; b++)
                 {
                     if (chromosome.GetGen(i + b))
-                        city |= (1 << (TravelingSalesmanProblem.BitsPerCity - 1 - b));
+                        city |= (1 << (_problem.BitsPerCity - 1 - b));
                 }
 
-                if (city >= TravelingSalesmanProblem.CityCount)
-                    city = MyRandom.NextInt(0, TravelingSalesmanProblem.CityCount);
+                if (city >= _problem.CityCount)
+                    city = MyRandom.NextInt(0, _problem.CityCount);
 
                 cities.Add(city);
             }
@@ -60,15 +60,15 @@ namespace DarwinGA.Example
         {
             var genes = new bool[_problem.ChromosomeSize];
 
-            for (int i = 0; i < TravelingSalesmanProblem.CityCount; i++)
+            for (int i = 0; i < _problem.CityCount; i++)
             {
                 int city = i < route.Length ? route[i] : 0;
-                city = Math.Clamp(city, 0, TravelingSalesmanProblem.CityCount - 1);
+                city = Math.Clamp(city, 0, _problem.CityCount - 1);
 
-                for (int b = 0; b < TravelingSalesmanProblem.BitsPerCity; b++)
+                for (int b = 0; b < _problem.BitsPerCity; b++)
                 {
-                    int bitMask = 1 << (TravelingSalesmanProblem.BitsPerCity - 1 - b);
-                    genes[(i * TravelingSalesmanProblem.BitsPerCity) + b] = (city & bitMask) != 0;
+                    int bitMask = 1 << (_problem.BitsPerCity - 1 - b);
+                    genes[(i * _problem.BitsPerCity) + b] = (city & bitMask) != 0;
                 }
             }
 

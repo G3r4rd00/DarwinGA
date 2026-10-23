@@ -51,17 +51,39 @@ static void RunGridWalkerMenu(GeneticAlgorithmSettings gaSettings, IConfiguratio
     Console.WriteLine("DarwinGA - Grid walker pathfinding");
     Console.WriteLine("================================\n");
 
-    bool useAIPopulation = AskYesNo("Use AI for initial population creation? (y/N): ", false);
-    bool useAICrossover = AskYesNo("Use AI for crossover? (y/N): ", false);
+    int cityCount = AskCityCount(appConfiguration);
+    bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
+    bool useAICrossover = AskYesNo("Use AI for crossover? (Y/n): ", true);
 
     if (!useAIPopulation && !useAICrossover)
     {
-        TravelingSalesman.RunWithAG(gaSettings);
+        TravelingSalesman.RunWithAG(gaSettings, cityCount);
         return;
     }
 
     var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
-    TravelingSalesman.RunWithAIOptions(aiProvider, gaSettings, useAIPopulation, useAICrossover);
+    TravelingSalesman.RunWithAIOptions(aiProvider, gaSettings, useAIPopulation, useAICrossover, cityCount);
+}
+
+static int AskCityCount(IConfiguration configuration)
+{
+    int defaultCityCount = int.TryParse(configuration["TravelingSalesman:CityCount"], out var configured) && configured >= TravelingSalesmanProblem.MinCityCount
+        ? configured
+        : TravelingSalesmanProblem.DefaultCityCount;
+
+    while (true)
+    {
+        Console.Write($"Number of cities (min {TravelingSalesmanProblem.MinCityCount}, default {defaultCityCount}): ");
+        var input = Console.ReadLine()?.Trim();
+
+        if (string.IsNullOrWhiteSpace(input))
+            return defaultCityCount;
+
+        if (int.TryParse(input, out var cityCount) && cityCount >= TravelingSalesmanProblem.MinCityCount)
+            return cityCount;
+
+        Console.WriteLine($"Invalid value. Enter an integer >= {TravelingSalesmanProblem.MinCityCount}.");
+    }
 }
 
 static bool AskYesNo(string prompt, bool defaultValue)
@@ -84,10 +106,14 @@ static IAIProvider GetAIProvider(IConfiguration configuration, int populationSiz
     Console.WriteLine(" 1) OpenAI");
     Console.WriteLine(" 2) DeepSeek");
     Console.WriteLine(" 3) LM Studio (OpenAI-compatible local API)");
-    Console.Write("Option (1-3, default 3): ");
+    Console.WriteLine(" 4) Claude (Claude Code CLI, uses your Claude subscription)");
+    Console.Write("Option (1-4, default 4): ");
     var providerOption = Console.ReadLine()?.Trim();
     if (string.IsNullOrWhiteSpace(providerOption))
-        providerOption = "3";
+        providerOption = "4";
+
+    if (providerOption == "4")
+        return CreateClaudeCodeProvider(configuration);
 
     if (providerOption == "3")
         return CreateLmStudioProvider(configuration);
@@ -159,6 +185,42 @@ static IAIProvider CreateDeepSeekProvider(IConfiguration configuration)
     return CreateDeepSeekProviderWithModel(configuration, model);
 }
 
+static IAIProvider CreateClaudeCodeProvider(IConfiguration configuration)
+{
+    string? cliPath = configuration["Claude:CliPath"];
+    int timeoutSeconds = int.TryParse(configuration["Claude:TimeoutSeconds"], out var seconds) && seconds > 0 ? seconds : 600;
+
+    string defaultModel = configuration["Claude:Model"] is { Length: > 0 } configuredModel ? configuredModel : "opus";
+
+    Console.WriteLine("Choose a model:");
+    Console.WriteLine(" 1) sonnet  (latest Sonnet)");
+    Console.WriteLine(" 2) opus    (latest Opus)");
+    Console.WriteLine(" 3) haiku   (latest Haiku, fastest)");
+    Console.WriteLine(" 4) fable   (latest Fable)");
+    Console.WriteLine(" 5) Other (enter full model name, e.g. claude-opus-5-5)");
+    Console.Write($"Option (1-5, default {defaultModel}): ");
+    var option = Console.ReadLine()?.Trim();
+
+    string model = option switch
+    {
+        "1" => "sonnet",
+        "2" => "opus",
+        "3" => "haiku",
+        "4" => "fable",
+        "5" => ReadCustomClaudeModel(defaultModel),
+        _ => defaultModel
+    };
+
+    Console.WriteLine($"Using Claude model: {model}");
+    return new ClaudeCodeProvider(model, cliPath, TimeSpan.FromSeconds(timeoutSeconds));
+}
+
+static string ReadCustomClaudeModel(string defaultModel)
+{
+    Console.Write("Model name: ");
+    var model = Console.ReadLine()?.Trim();
+    return string.IsNullOrWhiteSpace(model) ? defaultModel : model;
+}
 
 static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
 {

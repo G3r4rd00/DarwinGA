@@ -6,13 +6,27 @@ namespace DarwinGA.Example
 {
     internal sealed class TravelingSalesmanProblem
     {
-        public const int BitsPerCity = 5;
-        public const int CityCount = 32;
+        public const int DefaultCityCount = 32;
+        public const int MinCityCount = 3;
+
+        public int CityCount { get; }
+        public int BitsPerCity { get; }
 
         public int ChromosomeSize => CityCount * BitsPerCity;
-        public int[,] DistanceMatrix { get; } = BuildDistanceMatrix();
+        public int[,] DistanceMatrix { get; }
 
-        private static int[,] BuildDistanceMatrix()
+        public TravelingSalesmanProblem(int cityCount = DefaultCityCount)
+        {
+            if (cityCount < MinCityCount)
+                throw new ArgumentOutOfRangeException(nameof(cityCount), $"City count must be at least {MinCityCount}.");
+
+            CityCount = cityCount;
+            // Minimum bits needed to represent every city index (0..CityCount-1).
+            BitsPerCity = (int)Math.Ceiling(Math.Log2(cityCount));
+            DistanceMatrix = BuildDistanceMatrix(cityCount);
+        }
+
+        private static int[,] BuildDistanceMatrix(int CityCount)
         {
             var dist = new int[CityCount, CityCount];
 

@@ -59,7 +59,8 @@ static void RunProblemMenu(GeneticAlgorithmSettings gaSettings, IConfiguration a
     Console.WriteLine(" 3) Job Shop Scheduling FT10 (10x10, optimum 930, hard)");
     Console.WriteLine(" 4) Job Shop Scheduling TA01 (15x15, optimum 1231, very hard)");
     Console.WriteLine(" 5) Job Shop Scheduling random instance (size of your choice, optimum unknown)");
-    Console.Write("Option (1-5, default 4): ");
+    Console.WriteLine(" 6) Ramsey numbers (includes the open problem R(5,5) >= 44)");
+    Console.Write("Option (1-6, default 6): ");
     var problemOption = Console.ReadLine()?.Trim();
 
     if (problemOption == "1")
@@ -72,9 +73,16 @@ static void RunProblemMenu(GeneticAlgorithmSettings gaSettings, IConfiguration a
     {
         "2" => JobShopProblem.FT06(),
         "3" => JobShopProblem.FT10(),
+        "4" => JobShopProblem.TA01(),
         "5" => JobShopProblem.Random(AskInt("Number of jobs", 30), AskInt("Number of machines", 20)),
-        _ => JobShopProblem.TA01()
+        _ => null
     };
+
+    if (problem is null)
+    {
+        RunRamsey(gaSettings, appConfiguration);
+        return;
+    }
 
     var runner = new JobShopRunner(problem);
     bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
@@ -104,6 +112,44 @@ static void RunTravelingSalesman(GeneticAlgorithmSettings gaSettings, IConfigura
 
     var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
     TravelingSalesman.RunWithAIOptions(aiProvider, gaSettings, useAIPopulation, useAICrossover, cityCount);
+}
+
+static void RunRamsey(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
+{
+    Console.WriteLine("\nColor the edges of K_n red/blue with no red K_s and no blue K_t (proves R(s,t) > n):");
+    Console.WriteLine(" 1) R(3,3) on K5   (warm-up, solution exists)");
+    Console.WriteLine(" 2) R(4,4) on K17  (solution exists, e.g. the Paley graph)");
+    Console.WriteLine(" 3) R(4,5) on K24  (solution exists, hard)");
+    Console.WriteLine(" 4) R(5,5) on K42  (solution exists, very hard)");
+    Console.WriteLine(" 5) R(5,5) on K43  (OPEN PROBLEM: a solution proves R(5,5) >= 44)");
+    Console.WriteLine(" 6) Custom R(s,t) on K_n");
+    Console.Write("Option (1-6, default 5): ");
+
+    var problem = Console.ReadLine()?.Trim() switch
+    {
+        "1" => RamseyProblem.R33(),
+        "2" => RamseyProblem.R44(),
+        "3" => RamseyProblem.R45(),
+        "4" => RamseyProblem.R55Known(),
+        "6" => RamseyProblem.Custom(AskInt("Red clique size s", 4), AskInt("Blue clique size t", 4),
+            Math.Min(AskInt($"Vertices n (max {RamseyProblem.MaxVertices})", 17), RamseyProblem.MaxVertices)),
+        _ => RamseyProblem.R55Open()
+    };
+
+    var runner = new RamseyRunner(problem, RamseySearchSettings.FromConfiguration(appConfiguration));
+
+    int maxGenerations = AskInt("Max generations", gaSettings.MaxGenerations, 1);
+    bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
+    bool useAICrossover = AskYesNo("Use AI for crossover? (Y/n): ", true);
+
+    if (!useAIPopulation && !useAICrossover)
+    {
+        runner.RunWithAG(gaSettings, maxGenerations);
+        return;
+    }
+
+    var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
+    runner.RunWithAIOptions(aiProvider, gaSettings, maxGenerations, useAIPopulation, useAICrossover);
 }
 
 static int AskCityCount(IConfiguration configuration)

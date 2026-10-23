@@ -61,7 +61,7 @@ namespace DarwinGA.Example
             Console.WriteLine("Genetic algorithm configuration");
             Console.WriteLine("-------------------------------");
             Console.WriteLine($"  Instance            : {_problem.Name}, {_problem.OperationCount} operations ({_encoding.BitsPerKey} bits/key, chromosome {_encoding.ChromosomeSize} bits)");
-            Console.WriteLine($"  Optimum / bound     : makespan {_problem.OptimalMakespan} (lower bound {_problem.LowerBound})");
+            Console.WriteLine($"  Optimum / bound     : {(_problem.OptimalMakespan is int optimum ? $"makespan {optimum}" : "unknown")} (lower bound {_problem.LowerBound})");
             Console.WriteLine($"  Population size     : {settings.PopulationSize}");
             int aiInitialCount = useAIPopulationCreator ? Math.Min(settings.AIInitialPopulationCount, settings.PopulationSize) : 0;
             Console.WriteLine($"  Initial population  : {(aiInitialCount > 0 ? $"AI ({aiInitialCount}) + " : "")}Random ({settings.PopulationSize - aiInitialCount})");
@@ -73,7 +73,7 @@ namespace DarwinGA.Example
             Console.WriteLine($"  Mutation prob.      : {ga.MutationProbability}");
             Console.WriteLine($"  Adaptive rates      : {(ga.EnableAdaptiveRates ? "ON" : "OFF")}");
             Console.WriteLine($"  Reinsert best       : {(settings.ReinsertCount > 0 ? settings.ReinsertCount.ToString() : "OFF")}");
-            Console.WriteLine($"  Termination         : optimum makespan {_problem.OptimalMakespan} or {settings.MaxGenerations} generations");
+            Console.WriteLine($"  Termination         : {_problem.TargetLabel} makespan {_problem.TargetMakespan} or {settings.MaxGenerations} generations");
             Console.WriteLine();
         }
 
@@ -83,11 +83,13 @@ namespace DarwinGA.Example
                 return;
 
             var schedule = _encoding.BuildSchedule(_encoding.Decode(_best));
-            double gap = 100.0 * (schedule.Makespan - _problem.OptimalMakespan) / _problem.OptimalMakespan;
-            Console.WriteLine($"\nBest schedule: makespan {schedule.Makespan} (optimum {_problem.OptimalMakespan}, gap {gap:F1}%)");
+            Console.WriteLine($"\nBest schedule: makespan {schedule.Makespan} ({_problem.TargetLabel} {_problem.TargetMakespan}, gap {Gap(schedule.Makespan):F1}%)");
             foreach (var timeline in schedule.MachineTimelines())
                 Console.WriteLine($"  {timeline}");
         }
+
+        // Percentage above the optimum, or above the lower bound when the optimum is unknown.
+        private double Gap(int makespan) => 100.0 * (makespan - _problem.TargetMakespan) / _problem.TargetMakespan;
 
         private GeneticAlgorithm<BinaryEvolutional> CreateBaseGA(GeneticAlgorithmSettings settings)
         {
@@ -103,7 +105,7 @@ namespace DarwinGA.Example
                 Cross = new UniformCross(0.5),
                 Selection = new EliteSelecction(0.1),
                 Reinsert = settings.ReinsertCount > 0 ? new ReinsertBest<BinaryEvolutional>(settings.ReinsertCount) : null,
-                // Fitness = optimum / makespan, so 1.0 means the optimum schedule was found.
+                // Fitness = target / makespan, so 1.0 means the optimum (or the lower bound) was reached.
                 Termination = new AnyTermination(
                     new FitnessThresholdTermination(1.0),
                     new GenerationNumTermination(settings.MaxGenerations)),
@@ -111,8 +113,7 @@ namespace DarwinGA.Example
                 {
                     _best = result.BestElement;
                     var makespan = _encoding.BuildSchedule(_encoding.Decode(result.BestElement)).Makespan;
-                    double gap = 100.0 * (makespan - _problem.OptimalMakespan) / _problem.OptimalMakespan;
-                    Console.WriteLine($"Gen: {result.GenerationNum} | MutationRate: {result.MutationProbability:F4} | BestFitness: {result.BestFitness:F4} | BestMakespan: {makespan} (gap {gap:F1}%)");
+                    Console.WriteLine($"Gen: {result.GenerationNum} | MutationRate: {result.MutationProbability:F4} | BestFitness: {result.BestFitness:F4} | BestMakespan: {makespan} (gap {Gap(makespan):F1}%)");
                 }
             };
         }

@@ -57,7 +57,9 @@ static void RunProblemMenu(GeneticAlgorithmSettings gaSettings, IConfiguration a
     Console.WriteLine(" 1) Traveling Salesman (planted shortest path)");
     Console.WriteLine(" 2) Job Shop Scheduling FT06 (6x6, optimum 55)");
     Console.WriteLine(" 3) Job Shop Scheduling FT10 (10x10, optimum 930, hard)");
-    Console.Write("Option (1-3, default 3): ");
+    Console.WriteLine(" 4) Job Shop Scheduling TA01 (15x15, optimum 1231, very hard)");
+    Console.WriteLine(" 5) Job Shop Scheduling random instance (size of your choice, optimum unknown)");
+    Console.Write("Option (1-5, default 4): ");
     var problemOption = Console.ReadLine()?.Trim();
 
     if (problemOption == "1")
@@ -66,7 +68,15 @@ static void RunProblemMenu(GeneticAlgorithmSettings gaSettings, IConfiguration a
         return;
     }
 
-    var runner = new JobShopRunner(problemOption == "2" ? JobShopProblem.FT06() : JobShopProblem.FT10());
+    var problem = problemOption switch
+    {
+        "2" => JobShopProblem.FT06(),
+        "3" => JobShopProblem.FT10(),
+        "5" => JobShopProblem.Random(AskInt("Number of jobs", 30), AskInt("Number of machines", 20)),
+        _ => JobShopProblem.TA01()
+    };
+
+    var runner = new JobShopRunner(problem);
     bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
     bool useAICrossover = AskYesNo("Use AI for crossover? (Y/n): ", true);
 
@@ -114,6 +124,23 @@ static int AskCityCount(IConfiguration configuration)
             return cityCount;
 
         Console.WriteLine($"Invalid value. Enter an integer >= {TravelingSalesmanProblem.MinCityCount}.");
+    }
+}
+
+static int AskInt(string label, int defaultValue, int minValue = 2)
+{
+    while (true)
+    {
+        Console.Write($"{label} (min {minValue}, default {defaultValue}): ");
+        var input = Console.ReadLine()?.Trim();
+
+        if (string.IsNullOrWhiteSpace(input))
+            return defaultValue;
+
+        if (int.TryParse(input, out var value) && value >= minValue)
+            return value;
+
+        Console.WriteLine($"Invalid value. Enter an integer >= {minValue}.");
     }
 }
 

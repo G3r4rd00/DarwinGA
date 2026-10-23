@@ -39,9 +39,9 @@ namespace DarwinGA.Example
             return population;
         }
 
-        // 1.0 when the optimum makespan is reached.
+        // 1.0 when the target makespan (optimum or lower bound) is reached.
         public double EvaluateFitness(BinaryEvolutional chromosome)
-            => _problem.OptimalMakespan / (double)BuildSchedule(Decode(chromosome)).Makespan;
+            => _problem.TargetMakespan / (double)BuildSchedule(Decode(chromosome)).Makespan;
 
         public List<int> Decode(BinaryEvolutional chromosome)
         {

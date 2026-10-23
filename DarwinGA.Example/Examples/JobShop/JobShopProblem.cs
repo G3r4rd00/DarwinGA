@@ -18,13 +18,17 @@ namespace DarwinGA.Example
         public int[,] Machines { get; }
         public int[,] Durations { get; }
 
-        // Best known (proven optimal) makespan of the benchmark instance.
-        public int OptimalMakespan { get; }
+        // Proven optimal makespan of the benchmark instance; null when it is unknown (generated instances).
+        public int? OptimalMakespan { get; }
 
         // Trivial lower bound: the busiest machine or the longest job.
         public int LowerBound { get; }
 
-        private JobShopProblem(string name, int[][] rows, int optimalMakespan)
+        // Makespan the run aims for (and stops at): the optimum when known, otherwise the lower bound.
+        public int TargetMakespan => OptimalMakespan ?? LowerBound;
+        public string TargetLabel => OptimalMakespan is null ? "lower bound" : "optimum";
+
+        private JobShopProblem(string name, int[][] rows, int? optimalMakespan)
         {
             Name = name;
             JobCount = rows.Length;
@@ -74,6 +78,61 @@ namespace DarwinGA.Example
             new[] { 0, 76, 1, 69, 3, 76, 5, 51, 2, 85, 9, 11, 6, 40, 7, 89, 4, 26, 8, 74 },
             new[] { 1, 85, 0, 13, 2, 61, 6, 7, 8, 64, 9, 49, 3, 76, 5, 47, 4, 52, 7, 90 },
         }, optimalMakespan: 930);
+
+        /// <summary>
+        /// Taillard 15x15 instance (ta01). Optimum makespan 1231.
+        /// </summary>
+        public static JobShopProblem TA01() => Shuffled("TA01 (15 jobs x 15 machines)",
+            GenerateTaillardRows(timeSeed: 840612802, machineSeed: 398197754, jobCount: 15, machineCount: 15),
+            optimalMakespan: 1231);
+
+        /// <summary>
+        /// New random instance built with Taillard's generator. Its optimum is unknown, so the run is measured
+        /// against the lower bound (which usually cannot be reached).
+        /// </summary>
+        public static JobShopProblem Random(int jobCount, int machineCount)
+            => new($"Random ({jobCount} jobs x {machineCount} machines)",
+                GenerateTaillardRows(MyRandom.NextInt(1, int.MaxValue), MyRandom.NextInt(1, int.MaxValue), jobCount, machineCount),
+                optimalMakespan: null);
+
+        // Taillard (1993) benchmark generator: durations uniform in 1..99 and a random machine order per job.
+        // With the published seeds it reproduces the ta instances exactly.
+        private static int[][] GenerateTaillardRows(int timeSeed, int machineSeed, int jobCount, int machineCount)
+        {
+            var durations = new int[jobCount, machineCount];
+            for (int job = 0; job < jobCount; job++)
+                for (int k = 0; k < machineCount; k++)
+                    durations[job, k] = TaillardUniform(ref timeSeed, 1, 99);
+
+            var rows = new int[jobCount][];
+            for (int job = 0; job < jobCount; job++)
+            {
+                var machines = Enumerable.Range(0, machineCount).ToArray();
+                for (int k = 0; k < machineCount; k++)
+                {
+                    int swapWith = TaillardUniform(ref machineSeed, k, machineCount - 1);
+                    (machines[k], machines[swapWith]) = (machines[swapWith], machines[k]);
+                }
+
+                rows[job] = Enumerable.Range(0, machineCount)
+                    .SelectMany(k => new[] { machines[k], durations[job, k] })
+                    .ToArray();
+            }
+
+            return rows;
+        }
+
+        private static int TaillardUniform(ref int seed, int low, int high)
+        {
+            const int a = 16807, b = 127773, c = 2836, m = int.MaxValue;
+
+            int k = seed / b;
+            seed = a * (seed % b) - k * c;
+            if (seed < 0)
+                seed += m;
+
+            return low + (int)(seed / (double)m * (high - low + 1));
+        }
 
         // Jobs and machines are relabeled at random on every run: the optimum does not change, but the instance
         // cannot be recognised as the published benchmark (and its published solution cannot be recalled).

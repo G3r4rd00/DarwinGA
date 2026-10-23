@@ -20,28 +20,46 @@ namespace DarwinGA.Example
             _aiProvider = aiProvider;
         }
 
-        public List<BinaryEvolutional> CreatePopulation(int populationSize)
+        /// <summary>
+        /// Creates the initial population mixing <paramref name="aiCount"/> AI-generated routes with random individuals.
+        /// </summary>
+        public List<BinaryEvolutional> CreatePopulation(int populationSize, int aiCount)
         {
-            int iaPopulationSize = Convert.ToInt16( populationSize * 0.1);
-            var systemMessage = BuildPopulationSystemMessage(iaPopulationSize);
-            _aiProvider.SetSystemMessage(systemMessage);
+            aiCount = Math.Clamp(aiCount, 0, populationSize);
+            var population = aiCount > 0 ? CreateAIPopulation(aiCount) : new List<BinaryEvolutional>();
+            Console.WriteLine($"Initial population: {population.Count} AI + {populationSize - population.Count} random");
 
-            var response = _aiProvider.SendPromptAsync(@$"
-                        Generate initial population
-                        {BuildOutputRules(iaPopulationSize)}
-                    ").Result;
-
-            var population = ParseRoutesFromAiResponse(response);
-            while (population.Count < populationSize)
-                population.Add(new BinaryEvolutional(_problem.ChromosomeSize));
+            population.AddRange(_encoding.CreateRandomPopulation(populationSize - population.Count));
             return population;
         }
 
-        public AICrosser CreateCrosser(int populationSize)
+        private List<BinaryEvolutional> CreateAIPopulation(int aiCount)
+        {
+            try
+            {
+                _aiProvider.SetSystemMessage(BuildPopulationSystemMessage(aiCount));
+
+                var response = _aiProvider.SendPromptAsync("Generate initial population").GetAwaiter().GetResult();
+
+                return ParseRoutesFromAiResponse(response).Take(aiCount).ToList();
+            }
+            catch (Exception ex)
+            {
+                // If the AI fails the population is completed with random individuals.
+                Console.WriteLine($"Error creating AI initial population: {ex.Message}");
+                return new List<BinaryEvolutional>();
+            }
+        }
+
+        /// <summary>
+        /// Creates an AI crossover that generates <paramref name="offspringCount"/> children per generation;
+        /// the genetic algorithm fills the rest with its classic crossover.
+        /// </summary>
+        public AICrosser CreateCrosser(int offspringCount)
         {
             return new AICrosser(
                 _aiProvider,
-                populationSize,
+                offspringCount,
                 parents =>
                 {
                     var parentRoutes = parents
@@ -57,7 +75,7 @@ namespace DarwinGA.Example
                     
                     return childs;
                 },
-                BuildCrossoverSystemMessage(populationSize));
+                BuildCrossoverSystemMessage(offspringCount));
         }
 
         private string BuildPopulationSystemMessage(int populationSize) => @$"
@@ -71,24 +89,26 @@ OTHER RULES:
 - Avoid producing similar or repeated route patterns between individuals.
 - Routes that use low-cost edges from the distance matrix.
 - Include near-optimal and diverse routes to seed a genetic algorithm.
-
+{BuildProblemDefinition()}
 {BuildDistanceMatrixSection()}
 
 {BuildOutputRules(populationSize)}
 ";
 
-        private string BuildCrossoverSystemMessage(int populationSize) => @$"
+        private string BuildCrossoverSystemMessage(int offspringCount) => @$"
 You are a JSON-only crossover operator for TSP (Traveling Salesman Problem).
 
-YOUR ONLY JOB: Receive parent routes and output a JSON array of exactly {populationSize} offspring routes.
+YOUR ONLY JOB: Receive parent routes and output a JSON array of exactly {offspringCount} offspring routes.
 
 STRICT RULES - VIOLATION CAUSES SYSTEM FAILURE:
-- You MUST output EXACTLY {populationSize} routes. Not fewer, not more.
+- You MUST output EXACTLY {offspringCount} routes. Not fewer, not more.
 - Output ONLY the JSON array. No words, no explanation, no markdown, no code fences.
 - First character of your response MUST be '['. Last character MUST be ']'.
 - Each route MUST contain exactly {_problem.CityCount} unique integers from 0 to {_problem.CityCount - 1}.
-- No city may repeat within a single route.
-- All {populationSize} routes must be present and the array properly closed before you stop.
+- NEVER repeat a city within a route and NEVER leave a city out: every city appears EXACTLY ONCE.
+- When combining parent segments, skip any city already placed in the child and add the missing ones; do not copy duplicates.
+- All {offspringCount} routes must be present and the array properly closed before you stop.
+{BuildProblemDefinition()}
 {BuildInputFormat()}
 {BuildDistanceMatrixSection()}
 
@@ -98,10 +118,17 @@ QUALITY GOAL (secondary, only after fulfilling strict rules above):
 - Maintain diversity to avoid premature convergence.
 
 COUNTING REQUIREMENT:
-Before outputting, internally count that you have exactly {populationSize} routes.
+Before outputting, internally count that you have exactly {offspringCount} routes.
 Do not stop early. Do not return partial output under any circumstance.
-{BuildOutputRules(populationSize)}
+{BuildOutputRules(offspringCount)}
 ";
+
+        private string BuildProblemDefinition() => @$"
+PROBLEM DEFINITION:
+- A route visits each of the {_problem.CityCount} cities (0 to {_problem.CityCount - 1}) EXACTLY ONCE.
+- The route is an OPEN path: it does NOT return to the starting city.
+- Route distance = sum of DISTANCE[route[i]][route[i+1]] for i = 0..{_problem.CityCount - 2}. Lower is better.
+- The diagonal values DISTANCE[i][i] are never used.";
 
         private string BuildDistanceMatrixSection()
             => $"DISTANCE MATRIX JSON int[][]:\n{
@@ -140,7 +167,7 @@ OUTPUT RULES (CRITICAL):
 4. NO markdown, NO prose, NO extra keys, NO preface, NO suffix
 5. Return exactly {count} routes (if token limit forces fewer, ALWAYS close the array with ']')
 6. Each route: exactly {_problem.CityCount} integers in range 0..{_problem.CityCount - 1}
-7. Each route must be a valid permutation (no repeated city inside one route)
+7. Each route must be a valid permutation: every city 0..{_problem.CityCount - 1} appears EXACTLY ONCE (no repeated cities, no missing cities). Check every route for duplicates before answering
 8. MANDATORY: Close all brackets properly - incomplete JSON will cause parsing failure
 9. JSON must be parseable by JsonSerializer.Deserialize<List<int[]>>()";
 
@@ -164,17 +191,24 @@ OUTPUT RULES (CRITICAL):
                     routes.Add(route);
                 }
 
-                var chromosomes = routes
-                    .Select(_encoding.Encode)
-                    .Where(chromosome => chromosome._genes.Length == _problem.ChromosomeSize)
-                    .ToList();
+                // Only valid permutations are kept; Encode would silently pad or clamp anything else.
+                var validRoutes = routes.Where(IsValidRoute).ToList();
+                if (validRoutes.Count < routes.Count)
+                    Console.WriteLine($"AI returned {routes.Count - validRoutes.Count} invalid route(s) out of {routes.Count}; discarded.");
 
-                return chromosomes;
+                return validRoutes
+                    .Select(_encoding.Encode)
+                    .ToList();
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException("AI returned JSON that could not be parsed.", ex);
             }
         }
+
+        private bool IsValidRoute(int[] route)
+            => route.Length == _problem.CityCount
+               && route.All(city => city >= 0 && city < _problem.CityCount)
+               && route.Distinct().Count() == _problem.CityCount;
     }
 }

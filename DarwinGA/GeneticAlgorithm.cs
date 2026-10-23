@@ -382,12 +382,13 @@ namespace DarwinGA
             for (int i = 0; i < next.Length; i++)
                 Mutation.Apply(next[i], MutationProbability);
 
-            // Aplicar reinserción si está configurada
+            // Aplicar reinserción si está configurada.
+            // Se reinserta al final para no sobrescribir los hijos del PopulationCrosser, que ocupan las primeras posiciones.
             if (Reinsert != null)
             {
                 TElement[] toReinsert = Reinsert.GetSurvivors(elitesArray);
-                for (int i = 0; i < toReinsert.Length; i++)
-                    next[i] = toReinsert[i];
+                for (int i = 0; i < toReinsert.Length && i < next.Length; i++)
+                    next[next.Length - 1 - i] = toReinsert[i];
             }
 
 
@@ -398,8 +399,8 @@ namespace DarwinGA
         private TElement[] ApplyCrossover(int size, FitnessResult[] elitesArray)
         {
             var next = new List<TElement>();
-            if(PopulationCrosser != null) 
-                next = PopulationCrosser!.CrossPopulation(elitesArray.Select(fr => (TElement)fr.Element).ToList());
+            if(PopulationCrosser != null)
+                next = PopulationCrosser.CrossPopulation(elitesArray.Select(fr => (TElement)fr.Element).ToList()).Take(size).ToList();
 
             while(next.Count < size) 
                 next.Add(CreateChild(elitesArray));
@@ -412,6 +413,12 @@ namespace DarwinGA
         private TElement CreateChild(FitnessResult[] elitesArray)
         {
             TElement p1 = (TElement)elitesArray[MyRandom.NextInt(elitesArray.Length)].Element;
+            // Sin cruce el hijo es una copia de p1. Se usa CloneElement si está configurado; si no, cruzar p1 consigo mismo
+            // genera una copia nueva sin compartir la referencia del élite (que después se mutaría en sitio).
+            // Solo se consume un número aleatorio si la probabilidad es < 1 para no alterar las ejecuciones con semilla.
+            if (CrossoverProbability < 1.0 && MyRandom.NextDouble() >= CrossoverProbability)
+                return CloneElement is not null ? CloneElement(p1) : Cross.Apply(p1, p1);
+
             TElement p2 = (TElement)elitesArray[MyRandom.NextInt(elitesArray.Length)].Element;
 
             TElement child =  Cross.Apply(p1, p2);

@@ -13,6 +13,10 @@ namespace DarwinGA.Example
         public int BitsPerCity { get; }
 
         public int ChromosomeSize => CityCount * BitsPerCity;
+
+        // The matrix plants a path whose edges all cost 1 and every other edge costs at least 20,
+        // so the best open route has exactly CityCount - 1 edges of cost 1.
+        public int OptimalDistance => CityCount - 1;
         public int[,] DistanceMatrix { get; }
 
         public TravelingSalesmanProblem(int cityCount = DefaultCityCount)

@@ -69,7 +69,6 @@ namespace DarwinGA.Tests
                     .ToList(),
                 Fitness = (chr) => 1.0,
                 OnNewGeneration = (res) => { },
-                EnableParallelBreeding = parallel,
                 EnableParallelEvaluation = parallel,
                 Mutation = mutation,
                 Termination = termination,
@@ -77,7 +76,8 @@ namespace DarwinGA.Tests
                 Cross = cross
             };
 
-            ga.Run(8);
+            // 20 individuals so fraction-based selections (e.g. elite 10%) return the 2 parents the engine requires.
+            ga.Run(20);
         }
 
         private object? CreateInstanceIfPossible(Type type)

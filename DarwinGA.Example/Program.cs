@@ -30,16 +30,18 @@ static IConfigurationRoot LoadAppConfiguration()
     const string legacyDebugSettingsFile = "appsettings.Debug.json";
 
     var basePath = Directory.GetCurrentDirectory();
-    var settingsFile = File.Exists(Path.Combine(basePath, debugSettingsFile))
-        ? debugSettingsFile
-        : File.Exists(Path.Combine(basePath, legacyDebugSettingsFile))
-            ? legacyDebugSettingsFile
-            : defaultSettingsFile;
 
-    return new ConfigurationBuilder()
+    // The debug file (git-ignored) overrides appsettings.json, so local secrets never need to be committed.
+    var builder = new ConfigurationBuilder()
         .SetBasePath(basePath)
-        .AddJsonFile(settingsFile, optional: false, reloadOnChange: true)
-        .Build();
+        .AddJsonFile(defaultSettingsFile, optional: false, reloadOnChange: true);
+
+    if (File.Exists(Path.Combine(basePath, debugSettingsFile)))
+        builder.AddJsonFile(debugSettingsFile, optional: true, reloadOnChange: true);
+    else if (File.Exists(Path.Combine(basePath, legacyDebugSettingsFile)))
+        builder.AddJsonFile(legacyDebugSettingsFile, optional: true, reloadOnChange: true);
+
+    return builder.Build();
 }
 
 
@@ -225,7 +227,7 @@ static string ReadCustomClaudeModel(string defaultModel)
 static IAIProvider CreateLmStudioProvider(IConfiguration configuration)
 {
     string baseUrl = configuration["LMStudio:BaseUrl"] ?? "http://localhost:1234/v1";
-    string? apiKey = configuration["LMStudio:ApiKey"] ?? "sk-lm-mrpJFc9W:tpjJ8TAMJGZG1wYKJBkJ";
+    string? apiKey = configuration["LMStudio:ApiKey"] ?? Environment.GetEnvironmentVariable("LMSTUDIO_API_KEY");
     
 
     if (string.IsNullOrWhiteSpace(baseUrl))

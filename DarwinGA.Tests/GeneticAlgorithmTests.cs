@@ -42,16 +42,13 @@ namespace DarwinGA.Tests
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, true)]
-        [InlineData(false, false)]
-        public void GA_Should_Run_Parallel_Combinations_Successfully(bool parallelEval, bool parallelBreed)
+        [InlineData(true)]
+        [InlineData(false)]
+        public void GA_Should_Run_Parallel_Combinations_Successfully(bool parallelEval)
         {
             int generationCalls = 0;
             var ga = CreateDefaultGA();
             ga.EnableParallelEvaluation = parallelEval;
-            ga.EnableParallelBreeding = parallelBreed;
             ga.Termination = new GenerationNumTermination(5);
             ga.OnNewGeneration = (result) =>
             {

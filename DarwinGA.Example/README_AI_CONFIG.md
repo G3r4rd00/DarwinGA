@@ -46,7 +46,9 @@ Edita `DarwinGA.Example/appsettings.json` con tus valores:
 {
   "GeneticAlgorithm": {
     "PopulationSize": 50,
-    "MutationProbability": 0.1
+    "MutationProbability": 0.1,
+    "AIInitialPopulationCount": 3,
+    "AICrossoverRatio": 0.1
   },
   "OpenAI": {
     "ApiKey": ""
@@ -109,6 +111,9 @@ Durante la ejecución puedes elegir:
 
 - `GeneticAlgorithm:PopulationSize`: tamaño de la población.
 - `GeneticAlgorithm:MutationProbability`: probabilidad de mutación (0.0 a 1.0).
+- `GeneticAlgorithm:MaxGenerations`: máximo de generaciones (por defecto 100); también se para al encontrar la ruta óptima.
+- `GeneticAlgorithm:AIInitialPopulationCount`: individuos de la población inicial generados por IA (por defecto 3); el resto son aleatorios.
+- `GeneticAlgorithm:AICrossoverRatio`: fracción de cada generación producida por el crossover IA (por defecto 0.1 = 10%); el resto usa el crossover clásico.
 
 ---
 

@@ -45,7 +45,6 @@ public partial class Form1 : Form
     private NumericUpDown _tournamentKNum = null!;
     private CheckBox _enableDiversityCheck = null!;
     private CheckBox _enableParallelEvalCheck = null!;
-    private CheckBox _enableParallelBreedCheck = null!;
     private Button _runButton = null!;
     private Button _stopButton = null!;
     private SimpleLineChart _fitnessChart = null!;
@@ -103,7 +102,6 @@ public partial class Form1 : Form
 
         _enableDiversityCheck = new CheckBox { Text = "Activar diversidad", Checked = true, AutoSize = true };
         _enableParallelEvalCheck = new CheckBox { Text = "Evaluación paralela", Checked = true, AutoSize = true };
-        _enableParallelBreedCheck = new CheckBox { Text = "Cruce paralelo", Checked = true, AutoSize = true };
         _runButton = new Button { Text = "Iniciar", Width = 120, Height = 30 };
         _stopButton = new Button { Text = "Detener", Width = 120, Height = 30, Enabled = false };
 
@@ -127,7 +125,6 @@ public partial class Form1 : Form
             CreateLabeled("Factor diversidad", _diversityPenaltyNum),
             _enableDiversityCheck,
             _enableParallelEvalCheck,
-            _enableParallelBreedCheck,
             _runButton,
             _stopButton
         ]);
@@ -173,7 +170,6 @@ public partial class Form1 : Form
         _tournamentKNum.ValueChanged += (_, _) => ApplyHotReloadParameters();
         _enableDiversityCheck.CheckedChanged += (_, _) => ApplyHotReloadParameters();
         _enableParallelEvalCheck.CheckedChanged += (_, _) => ApplyHotReloadParameters();
-        _enableParallelBreedCheck.CheckedChanged += (_, _) => ApplyHotReloadParameters();
     }
 
     private void PopulateOptions()
@@ -278,7 +274,6 @@ public partial class Form1 : Form
             Selection = CreateSelection(s.SelectionType, s.SelectionFraction, s.TournamentK),
             Termination = new GenerationNumTermination(s.Generations),
             EnableParallelEvaluation = s.ParallelEval,
-            EnableParallelBreeding = s.ParallelBreed,
             EnableDiversity = s.EnableDiversity,
             DiversityMetric = s.EnableDiversity
                 ? new DelegateDiversityMetric<BinaryEvolutional>(HammingDistance)
@@ -303,7 +298,6 @@ public partial class Form1 : Form
         _hotCapacity = (int)_capacityNum.Value;
         ga.MutationProbability = (double)_mutationProbNum.Value;
         ga.EnableParallelEvaluation = _enableParallelEvalCheck.Checked;
-        ga.EnableParallelBreeding = _enableParallelBreedCheck.Checked;
 
         ga.Cross = CreateCross(_crossCombo.SelectedItem?.ToString() ?? "Uniform");
         ga.Mutation = CreateMutation(_mutationCombo.SelectedItem?.ToString() ?? "Random");
@@ -593,8 +587,7 @@ public partial class Form1 : Form
         DiversityPenalty: (double)_diversityPenaltyNum.Value,
         SelectionFraction: (double)_selectionFractionNum.Value,
         TournamentK: (int)_tournamentKNum.Value,
-        ParallelEval: _enableParallelEvalCheck.Checked,
-        ParallelBreed: _enableParallelBreedCheck.Checked);
+        ParallelEval: _enableParallelEvalCheck.Checked);
 
     private static Panel CreateLabeled(string label, Control control)
     {
@@ -760,6 +753,5 @@ public partial class Form1 : Form
         double DiversityPenalty,
         double SelectionFraction,
         int TournamentK,
-        bool ParallelEval,
-        bool ParallelBreed);
+        bool ParallelEval);
 }

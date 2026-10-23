@@ -54,7 +54,34 @@ namespace DarwinGA.Example
                 cities.Add(city);
             }
 
+            RepairRoute(cities);
             return cities;
+        }
+
+        // Replaces repeated cities with the missing ones (in ascending order), so every chromosome decodes to a
+        // valid permutation even after bit-level crossover and mutation. Valid routes are left unchanged.
+        private void RepairRoute(List<int> route)
+        {
+            var seen = new bool[_problem.CityCount];
+            var duplicatePositions = new List<int>();
+
+            for (int i = 0; i < route.Count; i++)
+            {
+                if (seen[route[i]])
+                    duplicatePositions.Add(i);
+                else
+                    seen[route[i]] = true;
+            }
+
+            int missingCity = 0;
+            foreach (int position in duplicatePositions)
+            {
+                while (seen[missingCity])
+                    missingCity++;
+
+                route[position] = missingCity;
+                seen[missingCity] = true;
+            }
         }
 
         public BinaryEvolutional Encode(int[] route)

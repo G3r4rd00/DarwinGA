@@ -34,14 +34,13 @@ namespace DarwinGA.Example
             var ga = CreateBaseGA(settings);
             var aiSupport = new TravelingSalesmanAiSupport(_problem, _encoding, aiProvider);
 
+            // AI is always mixed with the classic logic: N AI individuals + random ones in the initial population,
+            // and a fraction of AI offspring + classic crossover in every generation.
             if (useAIPopulationCreator)
-                ga.PopulationCreator = aiSupport.CreatePopulation;
+                ga.PopulationCreator = size => aiSupport.CreatePopulation(size, settings.AIInitialPopulationCount);
 
             if (useAICrossover)
-            {
-                ga.PopulationCrosser = aiSupport.CreateCrosser(settings.PopulationSize);
-                ga.Cross = new UniformCross();
-            }
+                ga.PopulationCrosser = aiSupport.CreateCrosser(settings.AICrossoverCount);
 
             PrintConfiguration(ga, settings, useAIPopulationCreator, useAICrossover);
 
@@ -65,15 +64,17 @@ namespace DarwinGA.Example
             Console.WriteLine("-------------------------------");
             Console.WriteLine($"  Cities              : {_problem.CityCount} ({_problem.BitsPerCity} bits/city, chromosome {_problem.ChromosomeSize} bits)");
             Console.WriteLine($"  Population size     : {settings.PopulationSize}");
-            Console.WriteLine($"  Initial population  : {(useAIPopulationCreator ? "AI" : "Random")}");
+            int aiInitialCount = useAIPopulationCreator ? Math.Min(settings.AIInitialPopulationCount, settings.PopulationSize) : 0;
+            Console.WriteLine($"  Initial population  : {(aiInitialCount > 0 ? $"AI ({aiInitialCount}) + " : "")}Random ({settings.PopulationSize - aiInitialCount})");
             Console.WriteLine($"  Selection           : {ga.Selection.GetType().Name}");
-            Console.WriteLine($"  Crossover           : {(useAICrossover ? "AI + " : "")}{ga.Cross.GetType().Name}");
-            Console.WriteLine($"  Crossover prob.     : {ga.CrossoverProbability} (not applied by the engine)");
+            int aiCrossoverCount = useAICrossover ? settings.AICrossoverCount : 0;
+            Console.WriteLine($"  Crossover           : {(aiCrossoverCount > 0 ? $"AI {settings.AICrossoverRatio:P0} ({aiCrossoverCount}) + " : "")}{ga.Cross.GetType().Name} ({settings.PopulationSize - aiCrossoverCount})");
+            Console.WriteLine($"  Crossover prob.     : {ga.CrossoverProbability}");
             Console.WriteLine($"  Mutation            : {ga.Mutation.GetType().Name}");
             Console.WriteLine($"  Mutation prob.      : {ga.MutationProbability}");
             Console.WriteLine($"  Adaptive rates      : {(ga.EnableAdaptiveRates ? "ON" : "OFF")}");
             Console.WriteLine($"  Reinsert best       : {(settings.ReinsertCount > 0 ? settings.ReinsertCount.ToString() : "OFF")}");
-            Console.WriteLine($"  Termination         : {ga.Termination.GetType().Name}");
+            Console.WriteLine($"  Termination         : optimum distance {_problem.OptimalDistance} or {settings.MaxGenerations} generations");
             Console.WriteLine($"  Parallel evaluation : {(ga.EnableParallelEvaluation ? "ON" : "OFF")}");
             Console.WriteLine();
         }
@@ -92,7 +93,10 @@ namespace DarwinGA.Example
                 Cross = new UniformCross(0.5),
                 Selection = new EliteSelecction(0.1),
                 Reinsert = settings.ReinsertCount > 0 ? new ReinsertBest<BinaryEvolutional>(settings.ReinsertCount) : null,
-                Termination = new FitnessThresholdTermination(1000),
+                // Stops when the optimum route is found (fitness = CityCount / OptimalDistance) or after MaxGenerations.
+                Termination = new AnyTermination(
+                    new FitnessThresholdTermination(_problem.CityCount / (double)_problem.OptimalDistance),
+                    new GenerationNumTermination(settings.MaxGenerations)),
                 OnNewGeneration = result =>
                 {
                     var route = _encoding.Decode(result.BestElement);

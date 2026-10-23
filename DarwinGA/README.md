@@ -201,14 +201,14 @@ var ga = new GeneticAlgorithm<BinaryEvolutional>
 
     PopulationCrosser = new AICrosser(
         aiProvider,
-        populationSize,
+        offspringCount: populationSize / 10, // el resto lo completa el Cross clásico
         serializePopulation,
         deserializePopulation,
         systemMessage: "You are an expert GA crossover operator"
     ),
 
-    // Si usas PopulationCrosser para el cruce principal, Cross puede quedar en null
-    Cross = null,
+    // Cross completa la población con los hijos que no genera el PopulationCrosser
+    Cross = new UniformCross(),
 
     Fitness = EvaluateFitness,
     Mutation = mutation,

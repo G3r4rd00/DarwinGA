@@ -55,47 +55,14 @@ static void RunProblemMenu(GeneticAlgorithmSettings gaSettings, IConfiguration a
     Console.WriteLine("================================\n");
     Console.WriteLine("Choose a problem:");
     Console.WriteLine(" 1) Traveling Salesman (planted shortest path)");
-    Console.WriteLine(" 2) Job Shop Scheduling FT06 (6x6, optimum 55)");
-    Console.WriteLine(" 3) Job Shop Scheduling FT10 (10x10, optimum 930, hard)");
-    Console.WriteLine(" 4) Job Shop Scheduling TA01 (15x15, optimum 1231, very hard)");
-    Console.WriteLine(" 5) Job Shop Scheduling random instance (size of your choice, optimum unknown)");
-    Console.WriteLine(" 6) Ramsey numbers (includes the open problem R(5,5) >= 44)");
-    Console.Write("Option (1-6, default 6): ");
+    Console.WriteLine(" 2) Hadamard matrices (includes the open problem: order 668)");
+    Console.Write("Option (1-2, default 2): ");
     var problemOption = Console.ReadLine()?.Trim();
 
     if (problemOption == "1")
-    {
         RunTravelingSalesman(gaSettings, appConfiguration);
-        return;
-    }
-
-    var problem = problemOption switch
-    {
-        "2" => JobShopProblem.FT06(),
-        "3" => JobShopProblem.FT10(),
-        "4" => JobShopProblem.TA01(),
-        "5" => JobShopProblem.Random(AskInt("Number of jobs", 30), AskInt("Number of machines", 20)),
-        _ => null
-    };
-
-    if (problem is null)
-    {
-        RunRamsey(gaSettings, appConfiguration);
-        return;
-    }
-
-    var runner = new JobShopRunner(problem);
-    bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
-    bool useAICrossover = AskYesNo("Use AI for crossover? (Y/n): ", true);
-
-    if (!useAIPopulation && !useAICrossover)
-    {
-        runner.RunWithAG(gaSettings);
-        return;
-    }
-
-    var aiProvider = GetAIProvider(appConfiguration, gaSettings.PopulationSize);
-    runner.RunWithAIOptions(aiProvider, gaSettings, useAIPopulation, useAICrossover);
+    else
+        RunHadamard(gaSettings, appConfiguration);
 }
 
 static void RunTravelingSalesman(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
@@ -114,29 +81,28 @@ static void RunTravelingSalesman(GeneticAlgorithmSettings gaSettings, IConfigura
     TravelingSalesman.RunWithAIOptions(aiProvider, gaSettings, useAIPopulation, useAICrossover, cityCount);
 }
 
-static void RunRamsey(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
+static void RunHadamard(GeneticAlgorithmSettings gaSettings, IConfiguration appConfiguration)
 {
-    Console.WriteLine("\nColor the edges of K_n red/blue with no red K_s and no blue K_t (proves R(s,t) > n):");
-    Console.WriteLine(" 1) R(3,3) on K5   (warm-up, solution exists)");
-    Console.WriteLine(" 2) R(4,4) on K17  (solution exists, e.g. the Paley graph)");
-    Console.WriteLine(" 3) R(4,5) on K24  (solution exists, hard)");
-    Console.WriteLine(" 4) R(5,5) on K42  (solution exists, very hard)");
-    Console.WriteLine(" 5) R(5,5) on K43  (OPEN PROBLEM: a solution proves R(5,5) >= 44)");
-    Console.WriteLine(" 6) Custom R(s,t) on K_n");
+    Console.WriteLine("\nFind four ±1 sequences whose periodic autocorrelations cancel out (Goethals-Seidel array):");
+    Console.WriteLine(" 1) Order 20   (sequences of length 5, warm-up)");
+    Console.WriteLine(" 2) Order 44   (length 11, solution known)");
+    Console.WriteLine(" 3) Order 92   (length 23, solution known, hard)");
+    Console.WriteLine(" 4) Order 116  (length 29, solution known, very hard)");
+    Console.WriteLine(" 5) Order 668  (length 167, OPEN PROBLEM: smallest order with no known Hadamard matrix)");
+    Console.WriteLine(" 6) Custom sequence length m (order 4m)");
     Console.Write("Option (1-6, default 5): ");
 
     var problem = Console.ReadLine()?.Trim() switch
     {
-        "1" => RamseyProblem.R33(),
-        "2" => RamseyProblem.R44(),
-        "3" => RamseyProblem.R45(),
-        "4" => RamseyProblem.R55Known(),
-        "6" => RamseyProblem.Custom(AskInt("Red clique size s", 4), AskInt("Blue clique size t", 4),
-            Math.Min(AskInt($"Vertices n (max {RamseyProblem.MaxVertices})", 17), RamseyProblem.MaxVertices)),
-        _ => RamseyProblem.R55Open()
+        "1" => HadamardProblem.Order20(),
+        "2" => HadamardProblem.Order44(),
+        "3" => HadamardProblem.Order92(),
+        "4" => HadamardProblem.Order116(),
+        "6" => HadamardProblem.Custom(AskInt("Sequence length m", 23, 1)),
+        _ => HadamardProblem.Order668()
     };
 
-    var runner = new RamseyRunner(problem, RamseySearchSettings.FromConfiguration(appConfiguration));
+    var runner = new HadamardRunner(problem, HadamardSearchSettings.FromConfiguration(appConfiguration));
 
     int maxGenerations = AskInt("Max generations", gaSettings.MaxGenerations, 1);
     bool useAIPopulation = AskYesNo("Use AI for initial population creation? (Y/n): ", true);
